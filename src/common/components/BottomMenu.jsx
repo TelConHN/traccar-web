@@ -19,7 +19,7 @@ import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 
 import { sessionActions } from '../../store';
 import { useTranslation } from './LocalizationProvider';
-import { useRestriction } from '../util/permissions';
+import { useAdministrator, useRestriction } from '../util/permissions';
 import { nativePostMessage } from './NativeInterface';
 
 const BottomMenu = () => {
@@ -29,7 +29,8 @@ const BottomMenu = () => {
   const t = useTranslation();
 
   const readonly = useRestriction('readonly');
-  const disableReports = useRestriction('disableReports');
+  const admin = useAdministrator();
+  const deviceReadonly = useRestriction('deviceReadonly');
   const devices = useSelector((state) => state.devices.items);
   const user = useSelector((state) => state.session.user);
   const socket = useSelector((state) => state.session.socket);
@@ -104,10 +105,16 @@ const BottomMenu = () => {
           }
         }
 
-        if (id != null) {
-          navigate(`/reports/combined?deviceId=${id}`);
+        if (admin) {
+          if (id != null) {
+            navigate(`/reports/combined?deviceId=${id}`);
+          } else {
+            navigate('/reports/combined');
+          }
+        } else if (id != null) {
+          navigate(`/replay?deviceId=${id}`);
         } else {
-          navigate('/reports/combined');
+          navigate('/replay');
         }
         break;
       }
@@ -137,18 +144,18 @@ const BottomMenu = () => {
           }
           value="map"
         />
-        {!disableReports && (
+        <BottomNavigationAction
+          label={t('reportTitle')}
+          icon={<DescriptionIcon />}
+          value="reports"
+        />
+        {!deviceReadonly && (
           <BottomNavigationAction
-            label={t('reportTitle')}
-            icon={<DescriptionIcon />}
-            value="reports"
+            label={t('settingsTitle')}
+            icon={<SettingsIcon />}
+            value="settings"
           />
         )}
-        <BottomNavigationAction
-          label={t('settingsTitle')}
-          icon={<SettingsIcon />}
-          value="settings"
-        />
         {readonly ? (
           <BottomNavigationAction
             label={t('loginLogout')}

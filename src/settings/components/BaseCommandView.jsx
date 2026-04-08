@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Autocomplete, Checkbox, FormControlLabel, MenuItem, TextField } from '@mui/material';
 import { useTranslation } from '../../common/components/LocalizationProvider';
-import { useRestriction } from '../../common/util/permissions';
+import { useAdministrator, useRestriction } from '../../common/util/permissions';
 import { useEffectAsync } from '../../reactHelper';
 import fetchOrThrow from '../../common/util/fetchOrThrow';
 import { prefixString } from '../../common/util/stringUtils';
@@ -17,6 +17,7 @@ const BaseCommandView = ({
   setSavedId,
 }) => {
   const t = useTranslation();
+  const admin = useAdministrator();
   const limitCommands = useRestriction('limitCommands');
 
   const textEnabled = useSelector((state) => state.session.server.textEnabled);
@@ -147,7 +148,7 @@ const BaseCommandView = ({
             />
           );
         })}
-      {textEnabled && (
+      {admin && textEnabled && (
         <FormControlLabel
           control={
             <Checkbox
@@ -158,7 +159,7 @@ const BaseCommandView = ({
           label={t('commandSendSms')}
         />
       )}
-      {!item.textChannel && (
+      {admin && !item.textChannel && (
         <FormControlLabel
           control={
             <Checkbox

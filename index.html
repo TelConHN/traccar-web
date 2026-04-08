@@ -1,28 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="${colorPrimary}" />
-    <meta name="description" content="${description}" />
+    <meta name="description" content="Telemetría y controles de Honduras — Plataforma de rastreo GPS en tiempo real." />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:title" content="Telconhn — Rastreo GPS" />
+    <meta property="og:description" content="Plataforma de rastreo GPS en tiempo real para Honduras." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.telconhn.com/" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" sizes="180x180" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="stylesheet" href="/styles.css">
-    <title>${title}</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <title>Telconhn — Rastreo GPS</title>
     <style>
-      .loader {
-        position: fixed; inset: 0; margin: auto;
-        width: 40px; aspect-ratio: 1; box-sizing: content-box; animation: ll 1s infinite linear;
-        border-radius: 50%; border: 4px solid lightgray; border-right-color: black;
+      html,
+      body,
+      #root {
+        height: 100%;
+        margin: 0;
       }
-      @keyframes ll {to{transform: rotate(1turn)}}
+
+      .loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f5f5f5;
+        z-index: 9999;
+      }
+
+      .loader::after {
+        content: '';
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 4px solid #e0e0e0;
+        border-top-color: #1976d2;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .loader.hidden {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
     </style>
   </head>
   <body>
-    <noscript>Enable JavaScript to use <a href="https://www.traccar.org/">Traccar GPS Tracking System</a>.</noscript>
+    <noscript>
+      <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;text-align:center;padding:2rem;">
+        <p>
+          Para usar <a href="https://www.telconhn.com/">Telemetría y Controles de Honduras</a>,
+          por favor habilita JavaScript en tu navegador.
+        </p>
+      </div>
+    </noscript>
     <div id="root" class="root"></div>
-    <div class="loader"></div>
-    <script type="module" src="/src/index.jsx" onerror="alert('Loading error.')"></script>
+    <div class="loader" id="loader" aria-label="Cargando aplicación..." role="status"></div>
+    <script type="module" src="/src/index.jsx" onerror="document.getElementById('loader').remove();"></script>
   </body>
 </html>

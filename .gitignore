@@ -19,3 +19,8 @@ node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Archivos de desarrollo local con Docker (no parte del submodulo)
+docker-compose.yml
+vite.config.docker.js
+DOCKER-DEV.md
