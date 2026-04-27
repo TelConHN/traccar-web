@@ -35,6 +35,31 @@ const BottomMenu = () => {
   const user = useSelector((state) => state.session.user);
   const socket = useSelector((state) => state.session.socket);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
+  const allowedReports = useSelector((state) => {
+    const raw = state.session.user.attributes?.allowedReports || '';
+    return raw.split(',').filter(Boolean);
+  });
+
+  const reportRouteMap = {
+    combined: '/reports/combined',
+    events: '/reports/events',
+    geofences: '/reports/geofences',
+    trips: '/reports/trips',
+    stops: '/reports/stops',
+    summary: '/reports/summary',
+    chart: '/reports/chart',
+    replay: '/replay',
+    route: '/reports/route',
+    logs: '/reports/logs',
+    scheduled: '/reports/scheduled',
+  };
+
+  const firstAllowedReportPath = () => {
+    for (const key of allowedReports) {
+      if (reportRouteMap[key]) return reportRouteMap[key];
+    }
+    return '/replay';
+  };
 
   const [anchorEl, setAnchorEl] = useState(null);
 
@@ -111,10 +136,9 @@ const BottomMenu = () => {
           } else {
             navigate('/reports/combined');
           }
-        } else if (id != null) {
-          navigate(`/replay?deviceId=${id}`);
         } else {
-          navigate('/replay');
+          const path = firstAllowedReportPath();
+          navigate(id != null ? `${path}?deviceId=${id}` : path);
         }
         break;
       }

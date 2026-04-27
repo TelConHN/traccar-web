@@ -12,6 +12,7 @@ import RouteIcon from '@mui/icons-material/Route';
 import EventRepeatIcon from '@mui/icons-material/EventRepeat';
 import NotesIcon from '@mui/icons-material/Notes';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import { useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import { useAdministrator, useRestriction } from '../../common/util/permissions';
@@ -23,6 +24,12 @@ const ReportsMenu = () => {
 
   const admin = useAdministrator();
   const readonly = useRestriction('readonly');
+  const allowedReports = useSelector((state) => {
+    const raw = state.session.user.attributes?.allowedReports || '';
+    return raw.split(',').filter(Boolean);
+  });
+
+  const canSee = (key) => admin || allowedReports.includes(key);
 
   const buildLink = (path) => {
     const sourceParams = new URLSearchParams(location.search);
@@ -48,7 +55,7 @@ const ReportsMenu = () => {
   return (
     <>
       <List>
-        {admin && (
+        {canSee('combined') && (
           <MenuItem
             title={t('reportCombined')}
             link={buildLink('/reports/combined')}
@@ -56,7 +63,7 @@ const ReportsMenu = () => {
             selected={location.pathname === '/reports/combined'}
           />
         )}
-        {admin && (
+        {canSee('events') && (
           <MenuItem
             title={t('reportEvents')}
             link={buildLink('/reports/events')}
@@ -64,7 +71,7 @@ const ReportsMenu = () => {
             selected={location.pathname === '/reports/events'}
           />
         )}
-        {admin && (
+        {canSee('geofences') && (
           <MenuItem
             title={t('sharedGeofences')}
             link={buildLink('/reports/geofences')}
@@ -72,7 +79,7 @@ const ReportsMenu = () => {
             selected={location.pathname === '/reports/geofences'}
           />
         )}
-        {admin && (
+        {canSee('trips') && (
           <MenuItem
             title={t('reportTrips')}
             link={buildLink('/reports/trips')}
@@ -80,7 +87,7 @@ const ReportsMenu = () => {
             selected={location.pathname === '/reports/trips'}
           />
         )}
-        {admin && (
+        {canSee('stops') && (
           <MenuItem
             title={t('reportStops')}
             link={buildLink('/reports/stops')}
@@ -88,7 +95,7 @@ const ReportsMenu = () => {
             selected={location.pathname === '/reports/stops'}
           />
         )}
-        {admin && (
+        {canSee('summary') && (
           <MenuItem
             title={t('reportSummary')}
             link={buildLink('/reports/summary')}
@@ -96,7 +103,7 @@ const ReportsMenu = () => {
             selected={location.pathname === '/reports/summary'}
           />
         )}
-        {admin && (
+        {canSee('chart') && (
           <MenuItem
             title={t('reportChart')}
             link={buildLink('/reports/chart')}
@@ -104,8 +111,10 @@ const ReportsMenu = () => {
             selected={location.pathname === '/reports/chart'}
           />
         )}
-        <MenuItem title={t('reportReplay')} link={buildLink('/replay')} icon={<RouteIcon />} />
-        {admin && (
+        {canSee('replay') && (
+          <MenuItem title={t('reportReplay')} link={buildLink('/replay')} icon={<RouteIcon />} />
+        )}
+        {canSee('route') && (
           <MenuItem
             title={t('reportPositions')}
             link={buildLink('/reports/route')}
@@ -116,7 +125,7 @@ const ReportsMenu = () => {
       </List>
       <Divider />
       <List>
-        {admin && (
+        {canSee('logs') && (
           <MenuItem
             title={t('sharedLogs')}
             link="/reports/logs"
@@ -124,7 +133,7 @@ const ReportsMenu = () => {
             selected={location.pathname === '/reports/logs'}
           />
         )}
-        {admin && !readonly && (
+        {canSee('scheduled') && !readonly && (
           <MenuItem
             title={t('reportScheduled')}
             link="/reports/scheduled"

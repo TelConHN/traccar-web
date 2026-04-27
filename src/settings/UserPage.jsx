@@ -458,6 +458,55 @@ const UserPage = () => {
               </FormGroup>
             </AccordionDetails>
           </Accordion>
+          {admin && !item.administrator && (
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="subtitle1">{t('userReportPermissions')}</Typography>
+              </AccordionSummary>
+              <AccordionDetails className={classes.details}>
+                {[
+                  { key: 'combined', label: t('reportCombined') },
+                  { key: 'events', label: t('reportEvents') },
+                  { key: 'geofences', label: t('sharedGeofences') },
+                  { key: 'trips', label: t('reportTrips') },
+                  { key: 'stops', label: t('reportStops') },
+                  { key: 'summary', label: t('reportSummary') },
+                  { key: 'chart', label: t('reportChart') },
+                  { key: 'replay', label: t('reportReplay') },
+                  { key: 'route', label: t('reportPositions') },
+                  { key: 'logs', label: t('sharedLogs') },
+                  { key: 'scheduled', label: t('reportScheduled') },
+                ].map(({ key, label }) => {
+                  const allowed = (item.attributes?.allowedReports || '').split(',').filter(Boolean);
+                  const checked = allowed.includes(key);
+                  return (
+                    <FormControlLabel
+                      key={key}
+                      control={
+                        <Checkbox
+                          checked={checked}
+                          onChange={(e) => {
+                            const current = (item.attributes?.allowedReports || '').split(',').filter(Boolean);
+                            const updated = e.target.checked
+                              ? [...current, key]
+                              : current.filter((r) => r !== key);
+                            setItem({
+                              ...item,
+                              attributes: {
+                                ...item.attributes,
+                                allowedReports: updated.join(','),
+                              },
+                            });
+                          }}
+                        />
+                      }
+                      label={label}
+                    />
+                  );
+                })}
+              </AccordionDetails>
+            </Accordion>
+          )}
           <EditAttributesAccordion
             attribute={attribute}
             attributes={item.attributes}

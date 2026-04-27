@@ -188,6 +188,7 @@
     "userDeviceReadonly": "Dispositivo Solo Lectura",
     "userLimitCommands": "Limitar Comandos",
     "userDisableReports": "Deshabilitar Informes",
+    "userReportPermissions": "Permisos de Reportes",
     "userFixedEmail": "No cambiar email",
     "userToken": "Token Acceso",
     "userRevokeToken": "Anular Token",
