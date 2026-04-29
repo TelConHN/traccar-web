@@ -9,6 +9,7 @@ import BuildIcon from '@mui/icons-material/Build';
 import PeopleIcon from '@mui/icons-material/People';
 import TodayIcon from '@mui/icons-material/Today';
 import SendIcon from '@mui/icons-material/Send';
+import SpeedIcon from '@mui/icons-material/Speed';
 import DnsIcon from '@mui/icons-material/Dns';
 import HelpIcon from '@mui/icons-material/Help';
 import PaymentIcon from '@mui/icons-material/Payment';
@@ -31,6 +32,7 @@ const SettingsMenu = () => {
   const userId = useSelector((state) => state.session.user.id);
   const supportLink = useSelector((state) => state.session.server.attributes.support);
   const billingLink = useSelector((state) => state.session.user.attributes.billingLink);
+  const speedLimitEnabled = useSelector((state) => !!state.session.user.attributes?.speedLimitEnabled);
 
   const features = useFeatures();
 
@@ -118,6 +120,14 @@ const SettingsMenu = () => {
               />
             )}
           </>
+        )}
+        {(admin || speedLimitEnabled) && (
+          <MenuItem
+            title={t('speedLimitTitle')}
+            link="/settings/speedlimit"
+            icon={<SpeedIcon />}
+            selected={location.pathname === '/settings/speedlimit'}
+          />
         )}
         {billingLink && (
           <MenuItem title={t('userBilling')} link={billingLink} icon={<PaymentIcon />} />

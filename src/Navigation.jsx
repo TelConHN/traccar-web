@@ -29,6 +29,7 @@ import ComputedAttributePage from './settings/ComputedAttributePage';
 import MaintenancesPage from './settings/MaintenancesPage';
 import MaintenancePage from './settings/MaintenancePage';
 import CommandsPage from './settings/CommandsPage';
+import SpeedLimitPage from './settings/SpeedLimitPage';
 import CommandPage from './settings/CommandPage';
 import StatisticsPage from './reports/StatisticsPage';
 import LoginPage from './login/LoginPage';
@@ -134,6 +135,7 @@ const Navigation = () => {
           <Route path="calendar/:id" element={<CalendarPage />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="commands" element={<CommandsPage />} />
+          <Route path="speedlimit" element={<SpeedLimitPage />} />
           <Route path="command/:id" element={<CommandPage />} />
           <Route path="command" element={<CommandPage />} />
           <Route path="attributes" element={<ComputedAttributesPage />} />

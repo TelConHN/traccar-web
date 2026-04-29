@@ -630,5 +630,15 @@
     "categoryVan": "Furgoneta",
     "categoryScooter": "Moto",
     "maintenanceStart": "Iniciar",
-    "maintenancePeriod": "Período"
+    "maintenancePeriod": "Período",
+    "speedLimitTitle": "Límite de velocidad",
+    "speedLimitMax": "Velocidad máxima",
+    "speedLimitCommandTemplate": "Plantilla de comando GPS",
+    "speedLimitPickCommand": "Usar comando guardado…",
+    "speedLimitNotConfigured": "Sin límite configurado",
+    "speedLimitSupported": "Soporta limitador hardware",
+    "speedLimitSaveAndSend": "Guardar y Enviar",
+    "speedLimitCurrent": "Límite actual",
+    "speedLimitConflictWarning": "Este usuario tiene activo Límite de velocidad pero también Limitar Comandos — debe desactivar Limitar Comandos para que pueda enviar el límite de velocidad.",
+    "userSpeedLimitEnabled": "Servicio de límite de velocidad"
 }

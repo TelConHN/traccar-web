@@ -20,6 +20,7 @@ import {
   Dialog,
   DialogContent,
   DialogActions,
+  Alert,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
@@ -435,6 +436,11 @@ const UserPage = () => {
                   label={t('userLimitCommands')}
                   disabled={!manager}
                 />
+                {item.limitCommands && item.attributes?.speedLimitEnabled && (
+                  <Alert severity="warning" sx={{ mt: -1 }}>
+                    {t('speedLimitConflictWarning')}
+                  </Alert>
+                )}
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -458,6 +464,32 @@ const UserPage = () => {
               </FormGroup>
             </AccordionDetails>
           </Accordion>
+          {admin && !item.administrator && (
+            <Accordion>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="subtitle1">{t('userSpeedLimitEnabled')}</Typography>
+              </AccordionSummary>
+              <AccordionDetails className={classes.details}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={!!item.attributes?.speedLimitEnabled}
+                      onChange={(e) =>
+                        setItem({
+                          ...item,
+                          attributes: {
+                            ...item.attributes,
+                            speedLimitEnabled: e.target.checked,
+                          },
+                        })
+                      }
+                    />
+                  }
+                  label={t('userSpeedLimitEnabled')}
+                />
+              </AccordionDetails>
+            </Accordion>
+          )}
           {admin && !item.administrator && (
             <Accordion>
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
