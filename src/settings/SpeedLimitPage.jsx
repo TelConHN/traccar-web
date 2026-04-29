@@ -149,25 +149,16 @@ const SpeedLimitPage = () => {
 
   // Clientes: usa el endpoint dedicado PUT /api/devices/{id}/speedlimit
   // que valida speedLimitEnabled en el servidor y solo toca ese atributo.
+  // El servidor guarda el atributo Y envía el comando GPS internamente si aplica.
+  // El cliente no necesita (ni puede) llamar /api/commands/send directamente.
   const handleClientSave = useCatch(async (device) => {
     setSavingId(device.id);
     try {
       const speedKmh = Number(speedInputs[device.id]);
-      const isSupported = !!device.attributes?.speedLimitSupported;
-      const command = device.attributes?.speedLimitCommand || '';
 
       await fetchOrThrow(`/api/devices/${device.id}/speedlimit?speed=${speedKmh}`, {
         method: 'PUT',
       });
-
-      if (isSupported && command && speedKmh > 0) {
-        const commandText = command.replace('{speed}', speedKmh);
-        await fetchOrThrow('/api/commands/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceId: device.id, type: 'custom', attributes: { data: commandText } }),
-        });
-      }
 
       const updated = {
         ...device,
