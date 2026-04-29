@@ -637,8 +637,10 @@
     "speedLimitPickCommand": "Usar comando guardado…",
     "speedLimitNotConfigured": "Sin límite configurado",
     "speedLimitSupported": "Soporta limitador hardware",
-    "speedLimitSaveAndSend": "Guardar y Enviar",
+    "speedLimitSaveAndSend": "Enviar",
     "speedLimitCurrent": "Límite actual",
     "speedLimitConflictWarning": "Este usuario tiene activo Límite de velocidad pero también Limitar Comandos — debe desactivar Limitar Comandos para que pueda enviar el límite de velocidad.",
-    "userSpeedLimitEnabled": "Servicio de límite de velocidad"
+    "userSpeedLimitEnabled": "Servicio de límite de velocidad",
+    "speedLimitGuide": "Guía de comandos por marca de GPS",
+    "speedLimitGuideNote": "Los comandos se envían vía GPRS a través de Traccar (conexión permanente del GPS con el servidor). Por esa razón no se requiere contraseña en el comando — la conexión misma es la autenticación.\n\nEjemplo Istartek VT900:\n  • Vía Traccar (GPRS): 005,{speed}\n  • Vía SMS directo:    W000000,005,{speed}  ← incluye la contraseña\n\nSi el GPS todavía no está conectado a Traccar, usa el formato SMS con contraseña. Una vez conectado, usa el formato sin contraseña.\n\nEl marcador {speed} se reemplaza automáticamente con el valor en km/h. Traccar almacena la velocidad internamente en nudos."
 }
