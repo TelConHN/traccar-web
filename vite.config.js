@@ -8,8 +8,13 @@ export default defineConfig(() => ({
   server: {
     port: 3000,
     proxy: {
-      '/api/socket': 'ws://localhost:8082',
-      '/api': 'http://localhost:8082',
+      // En Docker Desktop (Windows/Mac), localhost dentro del contenedor NO apunta al host.
+      // host.docker.internal sí resuelve al host — necesario para que el WebSocket
+      // llegue al contenedor traccar-server que corre en otra red de Docker.
+      // En Linux nativo, host.docker.internal puede no existir; usar la IP del host
+      // o conectar los contenedores a la misma red Docker.
+      '/api/socket': { target: 'ws://host.docker.internal:8082', ws: true },
+      '/api': 'http://host.docker.internal:8082',
     },
   },
   build: {

@@ -461,6 +461,21 @@ const UserPage = () => {
                   label={t('userFixedEmail')}
                   disabled={!manager}
                 />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={!!item.attributes?.showDetails}
+                      onChange={(e) =>
+                        setItem({
+                          ...item,
+                          attributes: { ...item.attributes, showDetails: e.target.checked },
+                        })
+                      }
+                    />
+                  }
+                  label={t('userShowDetails')}
+                  disabled={!admin}
+                />
               </FormGroup>
             </AccordionDetails>
           </Accordion>
