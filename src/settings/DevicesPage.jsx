@@ -55,14 +55,14 @@ const DevicesPage = () => {
   const loadItems = async (offset) => {
     setLoading(true);
     try {
-      const query = new URLSearchParams({ all: showAll, limit: pageSize, offset });
+      const query = new URLSearchParams({ all: showAll, limit: 10000, offset: 0 });
       if (searchKeyword) {
         query.append('keyword', searchKeyword);
       }
       const response = await fetchOrThrow(`/api/devices?${query.toString()}`);
       const data = await response.json();
-      setItems((previous) => (offset ? [...previous, ...data] : data));
-      setHasMore(data.length >= pageSize);
+      setItems(data);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
