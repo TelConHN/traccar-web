@@ -55,7 +55,7 @@ const DevicesPage = () => {
   const loadItems = async (offset) => {
     setLoading(true);
     try {
-      const query = new URLSearchParams({ all: showAll, limit: 10000, offset: 0 });
+      const query = new URLSearchParams({ all: showAll });
       if (searchKeyword) {
         query.append('keyword', searchKeyword);
       }
