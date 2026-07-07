@@ -8,11 +8,13 @@ import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import {
   formatAddress,
   formatDistance,
+  formatOdometerNote,
   formatVolume,
   formatTime,
   formatNumericHours,
 } from '../common/util/formatter';
 import ReportFilter from './components/ReportFilter';
+import { useAdministrator } from '../common/util/permissions';
 import { useAttributePreference, usePreference } from '../common/util/preferences';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import PageLayout from '../common/components/PageLayout';
@@ -51,6 +53,7 @@ const StopReportPage = () => {
   const theme = useTheme();
 
   const devices = useSelector((state) => state.devices.items, deviceEquality(['id', 'name']));
+  const administrator = useAdministrator();
 
   const distanceUnit = useAttributePreference('distanceUnit');
   const volumeUnit = useAttributePreference('volumeUnit');
@@ -116,8 +119,11 @@ const StopReportPage = () => {
       case 'startTime':
       case 'endTime':
         return formatTime(value, 'minutes');
-      case 'startOdometer':
-        return formatDistance(value, distanceUnit, t);
+      case 'startOdometer': {
+        const formatted = formatDistance(value, distanceUnit, t);
+        const note = formatOdometerNote(item, t, administrator);
+        return note ? `${formatted} (${note})` : formatted;
+      }
       case 'duration':
         return formatNumericHours(value, t);
       case 'engineHours':

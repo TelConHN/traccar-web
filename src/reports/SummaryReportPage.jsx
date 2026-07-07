@@ -15,12 +15,14 @@ import {
 import { useTheme } from '@mui/material/styles';
 import {
   formatDistance,
+  formatOdometerNote,
   formatSpeed,
   formatVolume,
   formatTime,
   formatNumericHours,
 } from '../common/util/formatter';
 import ReportFilter, { updateReportParams } from './components/ReportFilter';
+import { useAdministrator } from '../common/util/permissions';
 import { useAttributePreference } from '../common/util/preferences';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import PageLayout from '../common/components/PageLayout';
@@ -58,6 +60,7 @@ const SummaryReportPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const devices = useSelector((state) => state.devices.items, deviceEquality(['id', 'name']));
+  const administrator = useAdministrator();
 
   const distanceUnit = useAttributePreference('distanceUnit');
   const speedUnit = useAttributePreference('speedUnit');
@@ -122,7 +125,11 @@ const SummaryReportPage = () => {
       case 'startTime':
         return formatTime(value, 'date');
       case 'startOdometer':
-      case 'endOdometer':
+      case 'endOdometer': {
+        const formatted = formatDistance(value, distanceUnit, t);
+        const note = formatOdometerNote(item, t, administrator);
+        return note ? `${formatted} (${note})` : formatted;
+      }
       case 'distance':
         return formatDistance(value, distanceUnit, t);
       case 'averageSpeed':

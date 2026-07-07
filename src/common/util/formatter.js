@@ -94,6 +94,33 @@ export const formatSpeed = (value, unit, t) =>
 export const formatVolume = (value, unit, t) =>
   `${volumeFromLiters(value, unit).toFixed(2)} ${volumeUnitString(unit, t)}`;
 
+export const formatOdometerSource = (source, t) => {
+  switch (source) {
+    case 'obd':
+      return t('reportOdometerSourceObd');
+    case 'device':
+      return t('reportOdometerSourceDevice');
+    case 'gps':
+      return t('reportOdometerSourceGps');
+    default:
+      return null;
+  }
+};
+
+// La fuente (real/reportado/estimado) y la advertencia de salto no realista son
+// información interna de diagnóstico — solo administradores las ven. El cliente
+// solo ve el número (formatDistance), sin ninguna nota junto a él.
+export const formatOdometerNote = (item, t, isAdmin) => {
+  if (!isAdmin) {
+    return null;
+  }
+  const source = formatOdometerSource(item.odometerSource, t);
+  if (!source) {
+    return null;
+  }
+  return item.odometerImplausible ? `${source} ⚠ ${t('reportOdometerImplausible')}` : source;
+};
+
 export const formatNumericHours = (value, t) => {
   const hours = Math.floor(value / 3600000);
   const minutes = Math.floor((value % 3600000) / 60000);
