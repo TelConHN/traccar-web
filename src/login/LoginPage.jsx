@@ -20,12 +20,16 @@ import VpnLockIcon from '@mui/icons-material/VpnLock';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import FacebookIcon from '@mui/icons-material/Facebook';
+import InstagramIcon from '@mui/icons-material/Instagram';
+import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import { useTheme } from '@mui/material/styles';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { sessionActions } from '../store';
 import { useLocalization, useTranslation } from '../common/components/LocalizationProvider';
 import LoginLayout from './LoginLayout';
+import TikTokIcon from './TikTokIcon';
 import usePersistedState from '../common/util/usePersistedState';
 import {
   generateLoginToken,
@@ -65,7 +69,29 @@ const useStyles = makeStyles()((theme) => ({
   link: {
     cursor: 'pointer',
   },
+  socialContainer: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: theme.spacing(1.5),
+    marginTop: theme.spacing(3),
+  },
+  socialButton: {
+    border: `1px solid ${theme.palette.divider}`,
+    transition: 'transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 10px rgba(0, 0, 0, 0.15)',
+    },
+  },
 }));
+
+const SOCIAL_NETWORKS = [
+  { key: 'facebook', label: 'Facebook', icon: FacebookIcon, color: '#1877F2' },
+  { key: 'instagram', label: 'Instagram', icon: InstagramIcon, color: '#E1306C' },
+  { key: 'linkedin', label: 'LinkedIn', icon: LinkedInIcon, color: '#0A66C2' },
+  { key: 'tiktok', label: 'TikTok', icon: TikTokIcon, color: '#000000' },
+];
 
 const LoginPage = () => {
   const { classes } = useStyles();
@@ -105,6 +131,17 @@ const LoginPage = () => {
 
   const [announcementShown, setAnnouncementShown] = useState(false);
   const announcement = useSelector((state) => state.session.server.announcement);
+
+  const socialLinks = useSelector((state) => {
+    const attributes = state.session.server.attributes;
+    return {
+      facebook: attributes['social.facebook'],
+      instagram: attributes['social.instagram'],
+      linkedin: attributes['social.linkedin'],
+      tiktok: attributes['social.tiktok'],
+    };
+  });
+  const hasSocialLinks = Object.values(socialLinks).some((url) => url);
 
   const handlePasswordLogin = async (event) => {
     event.preventDefault();
@@ -285,6 +322,25 @@ const LoginPage = () => {
                 {t('loginReset')}
               </Link>
             )}
+          </div>
+        )}
+        {hasSocialLinks && (
+          <div className={classes.socialContainer}>
+            {SOCIAL_NETWORKS.map(({ key, label, icon: Icon, color }) => socialLinks[key] && (
+              <Tooltip key={key} title={label} arrow>
+                <IconButton
+                  className={classes.socialButton}
+                  component="a"
+                  href={socialLinks[key]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  sx={{ color }}
+                >
+                  <Icon />
+                </IconButton>
+              </Tooltip>
+            ))}
           </div>
         )}
       </div>
