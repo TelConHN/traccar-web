@@ -25,6 +25,16 @@ import BackIcon from '../common/components/BackIcon';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 import MapOverlay from '../map/overlay/MapOverlay';
 
+// Tope de marcas ("ticks") dibujadas en el slider. Cada marca es un elemento
+// del DOM: con un recorrido de 20.000 posiciones eran 20.000 <span>, que React
+// además reconciliaba en CADA cambio de índice — cada click de avanzar y cada
+// tick de la reproducción. Eso es lo que dejaba la pestaña sin responder, no
+// el mapa. Pasado este tope las marcas se omiten: a esa cantidad ya se
+// superponen en un borrón sin información, y `step={1}` deja exactamente los
+// mismos valores seleccionables que tenía `step={null}` con una marca por
+// posición, así que el slider se comporta igual.
+const MAX_SLIDER_MARKS = 200;
+
 const useStyles = makeStyles()((theme) => ({
   root: {
     height: '100%',
@@ -152,7 +162,13 @@ const ReplayPage = () => {
     try {
       const response = await fetchOrThrow(`/api/positions?${query.toString()}`);
       setIndex(0);
-      const positions = await response.json();
+      // Descarta fixes en "null island" (lat 0, lon 0): un solo punto así dibuja
+      // una recta desde la ruta real hasta el Golfo de Guinea y obliga a la
+      // cámara a alejarse para que quepa. Se filtra aquí, una vez, para que
+      // ningún hijo (línea, puntos, cámara) lo vea.
+      const positions = (await response.json()).filter(
+        (position) => position.latitude !== 0 || position.longitude !== 0,
+      );
       setPositions(positions);
       if (!positions.length) {
         throw Error(t('sharedNoData'));
@@ -217,8 +233,10 @@ const ReplayPage = () => {
               <Slider
                 className={classes.slider}
                 max={positions.length - 1}
-                step={null}
-                marks={positions.map((_, index) => ({ value: index }))}
+                step={1}
+                marks={positions.length <= MAX_SLIDER_MARKS
+                  ? positions.map((_, index) => ({ value: index }))
+                  : false}
                 value={index}
                 onChange={(_, index) => setIndex(index)}
               />
