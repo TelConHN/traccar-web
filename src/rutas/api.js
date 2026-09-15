@@ -2,14 +2,19 @@
 //
 // Vive detrás del mismo dominio que Traccar, así que la cookie de sesión viaja sola: no hay
 // token que guardar ni login aparte. Nginx manda /api/rutas/ al servicio.
+import { cabeceraClienteAdmin } from '../servicios/clienteAdmin';
+
 const BASE = '/api/rutas';
 
 // El servicio devuelve los errores como { error: "texto para la persona" }. Sin esto, el
 // usuario vería el JSON crudo en pantalla.
+//
+// Cada petición lleva el cliente que eligió un administrador, si eligió uno. El servidor la ignora
+// si quien pide no es administrador (ver servicios/clienteAdmin.js).
 const pedir = async (ruta, opciones = {}) => {
   const respuesta = await fetch(`${BASE}${ruta}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...opciones,
+    headers: { 'Content-Type': 'application/json', ...cabeceraClienteAdmin() },
   });
   if (!respuesta.ok) {
     let mensaje = await respuesta.text();

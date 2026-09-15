@@ -33,6 +33,9 @@ import LuggageIcon from '@mui/icons-material/Luggage';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PageLayout from '../common/components/PageLayout';
 import { useEffectAsync } from '../reactHelper';
+import { useAdministrator } from '../common/util/permissions';
+import SelectorCliente from '../servicios/SelectorCliente';
+import { useClienteAdmin } from '../servicios/clienteAdmin';
 import TransporteMenu from './TransporteMenu';
 import transporteApi from './api';
 import { OPERACIONES, ORDEN_OPERACIONES } from './operaciones';
@@ -251,16 +254,24 @@ const SeccionVacia = ({ seccion }) => (
 const TransportePage = () => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const admin = useAdministrator();
+  // Transporte es entero de UNA cuenta —su tipo de operación, sus recorridos, su gente—: un
+  // administrador tiene que elegir el cliente antes de ver o configurar nada.
+  const clienteElegido = useClienteAdmin();
+  const clienteId = admin ? (clienteElegido?.id ?? null) : null;
+  const requiereCliente = admin && !clienteId;
   const [perfil, setPerfil] = useState(null);
   const [error, setError] = useState('');
 
   useEffectAsync(async () => {
+    setPerfil(null);
+    setError('');
     try {
       setPerfil(await transporteApi.perfil());
     } catch (e) {
       setError(e.message);
     }
-  }, []);
+  }, [clienteId]);
 
   const operacion = perfil?.operacion ?? null;
   const pedida = seccionDe(pathname);
@@ -276,18 +287,26 @@ const TransportePage = () => {
   // cambia la dirección y no solo lo que se dibuja, para que el menú marque dónde está.
   useEffect(() => {
     if (!perfil || pedida.clave === 'hoy') return;
-    if (!operacion || !existeSeccion(pedida, operacion)) {
+    if (requiereCliente || sinServicio || !operacion || !existeSeccion(pedida, operacion)) {
       navigate('/transporte', { replace: true });
     }
-  }, [perfil, operacion, pedida, navigate]);
+  }, [perfil, operacion, pedida, navigate, sinServicio, requiereCliente]);
 
   const guardada = (nueva) => setPerfil((p) => ({ ...p, operacion: nueva }));
 
   let contenido = null;
-  if (perfil && !sinServicio) {
+  if (perfil && !sinServicio && requiereCliente) {
+    contenido = (
+      <Alert severity="info" sx={{ m: 2 }}>
+        Elegí un cliente arriba para ver o configurar su Transporte. Lo que configures queda a
+        nombre de ese cliente y él lo ve como suyo.
+      </Alert>
+    );
+  } else if (perfil && !sinServicio) {
     if (!operacion) {
       contenido = perfil.configura ? (
-        <EleccionOperacion actual={null} onGuardada={guardada} />
+        // Con clave por cliente: cambiar de cliente no arrastra la tarjeta marcada del anterior.
+        <EleccionOperacion key={clienteId ?? 'propia'} actual={null} onGuardada={guardada} />
       ) : (
         <Alert severity="info" sx={{ m: 2 }}>
           Tu cuenta todavía no terminó de configurar Transporte. Cuando lo haga, acá vas a ver tus
@@ -298,7 +317,12 @@ const TransportePage = () => {
       contenido = <PrimerosPasos perfil={perfil} />;
     } else if (pedida.clave === 'configuracion' && perfil.configura) {
       contenido = (
-        <EleccionOperacion key={operacion} actual={operacion} onGuardada={guardada} esCambio />
+        <EleccionOperacion
+          key={`${clienteId ?? 'propia'}-${operacion}`}
+          actual={operacion}
+          onGuardada={guardada}
+          esCambio
+        />
       );
     } else {
       contenido = <SeccionVacia seccion={seccion} />;
@@ -307,21 +331,35 @@ const TransportePage = () => {
 
   return (
     <PageLayout
-      menu={<TransporteMenu operacion={operacion} />}
+      // Sin vehículos con el servicio el menú queda solo con «Hoy», que es donde se explica cómo
+      // activarlo: una lista de secciones donde no se puede hacer nada invita a recorrerlas.
+      menu={<TransporteMenu operacion={sinServicio || requiereCliente ? null : operacion} />}
       breadcrumbs={pedida.clave === 'hoy' ? ['Transporte'] : ['Transporte', seccion.titulo]}
     >
+      {admin && <SelectorCliente servicio="transporte" cliente={clienteElegido} />}
       {!perfil && !error && <LinearProgress />}
       {error && (
         <Alert severity="error" sx={{ m: 2 }}>
           {error}
         </Alert>
       )}
-      {sinServicio && (
-        <Alert severity="info" sx={{ m: 2 }}>
-          Ninguno de tus vehículos tiene contratado el servicio de Transporte. Escribinos para
-          activarlo.
-        </Alert>
-      )}
+      {/* El administrador ve el módulo aunque ningún vehículo lo tenga: a él no le sirve
+          «escribinos», le sirve saber dónde se activa. */}
+      {sinServicio &&
+        (admin ? (
+          <Alert severity="info" sx={{ m: 2 }}>
+            {clienteId
+              ? `${clienteElegido.nombre} no tiene Transporte activado en ningún vehículo.`
+              : 'Ningún vehículo tiene Transporte activado todavía.'}{' '}
+            Se activa desde el panel admin, agregando el plan «Transporte» al contrato del cliente:
+            el servicio se enciende solo en los vehículos de ese contrato.
+          </Alert>
+        ) : (
+          <Alert severity="info" sx={{ m: 2 }}>
+            Ninguno de tus vehículos tiene contratado el servicio de Transporte. Escribinos para
+            activarlo.
+          </Alert>
+        ))}
       {contenido}
     </PageLayout>
   );

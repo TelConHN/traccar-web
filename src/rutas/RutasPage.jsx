@@ -35,6 +35,9 @@ import { makeStyles } from 'tss-react/mui';
 import PageLayout from '../common/components/PageLayout';
 import RutasMenu from './RutasMenu';
 import { useEffectAsync } from '../reactHelper';
+import { useAdministrator } from '../common/util/permissions';
+import SelectorCliente from '../servicios/SelectorCliente';
+import { useClienteAdmin, guardarClienteAdmin } from '../servicios/clienteAdmin';
 import rutasApi from './api';
 import JornadaMapa from './JornadaMapa';
 import NuevoUsuarioDialog from './NuevoUsuarioDialog';
@@ -145,6 +148,12 @@ const RutasPage = () => {
   const { classes } = useStyles();
   const angosta = useMediaQuery((theme) => theme.breakpoints.down('md'));
   const navigate = useNavigate();
+  const admin = useAdministrator();
+  // Un administrador trabaja para un cliente o mira todos (ver servicios/clienteAdmin.js). Mirando
+  // todos, puede ver las rutas pero no crear: lo que armara no sería de ningún cliente.
+  const clienteElegido = useClienteAdmin();
+  const clienteId = admin ? (clienteElegido?.id ?? null) : null;
+  const viendoTodos = admin && !clienteId;
   const { id, conductorId } = useParams();
   const { pathname } = useLocation();
 
@@ -205,7 +214,9 @@ const RutasPage = () => {
     }
   }, []);
 
-  useEffectAsync(cargar, []);
+  // Cambiar de cliente vuelve a cargar todo: la libreta, las rutas guardadas y los vehículos son
+  // de ese cliente.
+  useEffectAsync(cargar, [cargar, clienteId]);
 
   const filtros = Object.fromEntries(
     [...params.entries()].filter(([k]) => FILTROS_PERMITIDOS.includes(k)),
@@ -255,6 +266,8 @@ const RutasPage = () => {
     }
   }, [clave]);
 
+  // Al cambiar de cliente se vuelve a pedir el perfil, y con el perfil nuevo la lista: la cabecera
+  // del cliente la pone el cliente de la API en cada petición.
   useEffectAsync(async () => {
     if (seccion === 2 && perfil?.planifica) await cargarRutas();
   }, [seccion, perfil, cargarRutas]);
@@ -376,55 +389,79 @@ const RutasPage = () => {
     );
   };
 
-  const accionesJornada = (j) => (
-    <>
-      {j.estado === 'borrador' && (
-        <Button size="small" onClick={() => accion(() => rutasApi.despachar(j.id))}>
-          Despachar
+  const accionesJornada = (j) =>
+    // Un administrador mirando todos: despachar, cerrar o repetir necesitan saber para qué cliente
+    // es. En vez de botones que el servidor rechazaría, uno que lo lleva a ese cliente.
+    viendoTodos ? (
+      <>
+        {j.estado !== 'borrador' && (
+          <Button size="small" onClick={() => navigate(`/mi-ruta?jornada=${j.id}`)}>
+            Seguir
+          </Button>
+        )}
+        <Button size="small" onClick={() => navigate(`/rutas/${j.id}`)}>
+          Detalle
         </Button>
-      )}
-      {j.estado !== 'borrador' && (
-        <Button size="small" onClick={() => navigate(`/mi-ruta?jornada=${j.id}`)}>
-          Seguir
-        </Button>
-      )}
-      {/* Solo con la ruta en curso: en borrador se cambia en el planificador, y cerrada
+        {j.cliente && (
+          <Tooltip
+            title={`Trabajar en ${j.cliente.nombre} para despachar, cerrar o repetir esta ruta`}
+          >
+            <Button size="small" onClick={() => guardarClienteAdmin(j.cliente)}>
+              Elegir cliente
+            </Button>
+          </Tooltip>
+        )}
+      </>
+    ) : (
+      <>
+        {j.estado === 'borrador' && (
+          <Button size="small" onClick={() => accion(() => rutasApi.despachar(j.id))}>
+            Despachar
+          </Button>
+        )}
+        {j.estado !== 'borrador' && (
+          <Button size="small" onClick={() => navigate(`/mi-ruta?jornada=${j.id}`)}>
+            Seguir
+          </Button>
+        )}
+        {/* Solo con la ruta en curso: en borrador se cambia en el planificador, y cerrada
           ya no hay nada que recalcular. */}
-      {j.estado === 'despachada' && (
-        <Tooltip title="Agregar paradas recalculando desde donde está el vehículo">
-          <Button size="small" onClick={() => setEnCamino(j)}>
-            + Paradas
+        {j.estado === 'despachada' && (
+          <Tooltip title="Agregar paradas recalculando desde donde está el vehículo">
+            <Button size="small" onClick={() => setEnCamino(j)}>
+              + Paradas
+            </Button>
+          </Tooltip>
+        )}
+        <Tooltip title="Cargar estas mismas paradas para asignarlas a otro vehículo o conductor">
+          <Button
+            size="small"
+            onClick={() => {
+              setPrecarga({
+                nombre: j.nombre ?? '',
+                puntoIds: j.paradas.map((x) => x.punto.id),
+              });
+              irA(1);
+            }}
+          >
+            Repetir
           </Button>
         </Tooltip>
-      )}
-      <Tooltip title="Cargar estas mismas paradas para asignarlas a otro vehículo o conductor">
-        <Button
-          size="small"
-          onClick={() => {
-            setPrecarga({
-              nombre: j.nombre ?? '',
-              puntoIds: j.paradas.map((x) => x.punto.id),
-            });
-            irA(1);
-          }}
-        >
-          Repetir
+        <Button size="small" onClick={() => navigate(`/rutas/${j.id}`)}>
+          Detalle
         </Button>
-      </Tooltip>
-      <Button size="small" onClick={() => navigate(`/rutas/${j.id}`)}>
-        Detalle
-      </Button>
-      {j.estado === 'despachada' && (
-        <Button size="small" onClick={() => accion(() => rutasApi.cerrar(j.id))}>
-          Cerrar
-        </Button>
-      )}
-    </>
-  );
+        {j.estado === 'despachada' && (
+          <Button size="small" onClick={() => accion(() => rutasApi.cerrar(j.id))}>
+            Cerrar
+          </Button>
+        )}
+      </>
+    );
 
   const filaJornada = (j) => (
     <TableRow key={j.id} hover>
       <TableCell>{tituloJornada(j)}</TableCell>
+      {viendoTodos && <TableCell>{j.cliente?.nombre ?? '—'}</TableCell>}
       <TableCell>{nombreVehiculo(j.traccarDeviceId)}</TableCell>
       <TableCell>{nombreConductor(j.conductorUserId)}</TableCell>
       <TableCell>{situacionJornada(j)}</TableCell>
@@ -448,7 +485,12 @@ const RutasPage = () => {
         <div>{tituloJornada(j)}</div>
         <Stack alignItems="flex-end">{situacionJornada(j)}</Stack>
       </Stack>
-      <Typography variant="body2" sx={{ mt: 1 }}>
+      {viendoTodos && j.cliente && (
+        <Typography variant="caption" color="primary" display="block" sx={{ mt: 1 }}>
+          {j.cliente.nombre}
+        </Typography>
+      )}
+      <Typography variant="body2" sx={{ mt: viendoTodos ? 0.25 : 1 }}>
         {nombreVehiculo(j.traccarDeviceId)} · {nombreConductor(j.conductorUserId)}
       </Typography>
       <div style={{ marginTop: 8 }}>{avanceJornada(j)}</div>
@@ -569,6 +611,9 @@ const RutasPage = () => {
   // Sin vehículos con el servicio no hay nada que planificar. Se dice por qué y a quién
   // preguntarle, en vez de mostrar una pantalla vacía que parece rota.
   const sinServicio = perfil && !perfil.planifica;
+  // Mis rutas, Planificar y Usuarios son de UNA cuenta: un administrador mirando todos tiene que
+  // elegir el cliente primero. Rutas cargadas y Avisos sí se pueden mirar sin elegir.
+  const requiereCliente = viendoTodos && [0, 1, 3].includes(seccion);
 
   // Con un id en la URL se muestra esa jornada en el mapa. Conserva el menú de la izquierda
   // porque se llega desde «Rutas cargadas»: salir del detalle es elegir otra cosa ahí mismo,
@@ -585,6 +630,7 @@ const RutasPage = () => {
 
   return (
     <PageLayout menu={<RutasMenu />} breadcrumbs={['Rutas']}>
+      {admin && <SelectorCliente servicio="rutas" cliente={clienteElegido} />}
       {cargando && <LinearProgress />}
       {error && (
         <Alert severity="error" onClose={() => setError('')} sx={{ m: 2 }}>
@@ -592,14 +638,35 @@ const RutasPage = () => {
         </Alert>
       )}
 
-      {sinServicio && (
+      {/* El administrador ve el módulo aunque ningún vehículo lo tenga: a él no le sirve
+          «escribinos», le sirve saber dónde se activa. */}
+      {sinServicio &&
+        (admin ? (
+          <Alert severity="info" sx={{ m: 2 }}>
+            {clienteId
+              ? `${clienteElegido.nombre} no tiene Rutas activado en ningún vehículo.`
+              : 'Ningún vehículo tiene Rutas activado todavía.'}{' '}
+            Se activa desde el panel admin, agregando el plan «Rutas» al contrato del cliente: el
+            servicio se enciende solo en los vehículos de ese contrato.
+          </Alert>
+        ) : (
+          <Alert severity="info" sx={{ m: 2 }}>
+            Ninguno de tus vehículos tiene contratado el servicio de Rutas. Escribinos para
+            activarlo.
+          </Alert>
+        ))}
+
+      {requiereCliente && !sinServicio && (
         <Alert severity="info" sx={{ m: 2 }}>
-          Ninguno de tus vehículos tiene contratado el servicio de Rutas. Escribinos para activarlo.
+          Elegí un cliente arriba para ver sus rutas guardadas, planificar o administrar a su gente.
+          Lo que armes queda a nombre de ese cliente y él lo ve como suyo.
         </Alert>
       )}
 
-      {perfil?.planifica && (
-        <div className={classes.cuerpo}>
+      {perfil?.planifica && !requiereCliente && (
+        // La clave hace que cambiar de cliente arranque cada sección de cero: sin eso, el
+        // planificador conservaría el vehículo o las paradas del cliente anterior.
+        <div className={classes.cuerpo} key={clienteId ?? 'todos'}>
           {seccion === 0 && (
             <>
               {plantillas.length > 1 && (
@@ -921,6 +988,7 @@ const RutasPage = () => {
                   <TableHead>
                     <TableRow>
                       <TableCell>Ruta</TableCell>
+                      {viendoTodos && <TableCell>Cliente</TableCell>}
                       <TableCell>Vehículo</TableCell>
                       <TableCell>Conductor</TableCell>
                       <TableCell>Situación</TableCell>
@@ -938,7 +1006,7 @@ const RutasPage = () => {
                                 martes y empieza el miércoles es la mitad de la lectura. */}
                             <TableRow>
                               <TableCell
-                                colSpan={8}
+                                colSpan={viendoTodos ? 9 : 8}
                                 sx={{ backgroundColor: 'action.hover', py: 0.5 }}
                               >
                                 <Typography variant="caption" fontWeight={600}>
@@ -953,7 +1021,7 @@ const RutasPage = () => {
                       : jornadas.map((j) => filaJornada(j))}
                     {jornadas.length === 0 && !cargando && (
                       <TableRow>
-                        <TableCell colSpan={8}>
+                        <TableCell colSpan={viendoTodos ? 9 : 8}>
                           <Typography variant="body2" color="text.secondary">
                             {clave
                               ? 'Ninguna ruta coincide con lo que buscás.'

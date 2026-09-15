@@ -75,12 +75,18 @@ const BottomMenu = () => {
   // Un conductor siempre ve la entrada, tenga o no ruta asignada hoy: si no la tiene, la
   // pantalla se lo dice. Antes dependía de que hubiera un vehículo con el servicio, y un
   // conductor sin jornada activa no tiene ninguno — así que el módulo le desaparecía.
+  //
+  // Un administrador —solo el personal de TelConHN: el panel admin da `administrator` únicamente
+  // a sus roles superadmin y administrador, nunca a un cliente— ve siempre las dos entradas. Es
+  // quien configura y da soporte, y tiene que poder abrir el módulo antes de que exista el primer
+  // contrato con el servicio; la pantalla le explica cómo activarlo.
   const esConductor = user?.attributes?.['rutas.rol'] === 'conductor';
-  const tieneRutas = esConductor || Object.values(devices).some((d) => d.attributes?.rutas);
+  const tieneRutas =
+    esConductor || admin || Object.values(devices).some((d) => d.attributes?.rutas);
   // Transporte es otro servicio y lleva su propio botón, con el mismo criterio: lo decide el
   // atributo que el panel admin escribe en el vehículo según el contrato.
   const tieneTransporte =
-    !esConductor && Object.values(devices).some((d) => d.attributes?.transporte);
+    !esConductor && (admin || Object.values(devices).some((d) => d.attributes?.transporte));
   // Con los dos servicios la barra tiene seis botones. MUI le da a cada uno 80 px de ancho mínimo
   // y en un teléfono de 390 px el último queda fuera; se les quita ese mínimo para que entren.
   const compacto = tieneRutas && tieneTransporte;
