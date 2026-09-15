@@ -16,6 +16,8 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import MapIcon from '@mui/icons-material/Map';
 import PersonIcon from '@mui/icons-material/Person';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
+import RouteIcon from '@mui/icons-material/Route';
+import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
 
 import { sessionActions } from '../../store';
 import { useTranslation } from './LocalizationProvider';
@@ -63,6 +65,27 @@ const BottomMenu = () => {
 
   const [anchorEl, setAnchorEl] = useState(null);
 
+  // Módulo de Rutas: se decide con los dispositivos que la aplicación YA tiene cargados.
+  //
+  // Antes esto era una consulta HTTP al montar el menú, y se notaba: los demás botones se
+  // dibujaban de una y el de Rutas aparecía un instante después, empujando a los otros. El
+  // atributo `rutas` lo escribe el panel admin sobre el vehículo a partir del contrato, y el
+  // vehículo ya está en el estado de la aplicación — así que la respuesta existe desde el
+  // primer render, sin pedir nada y sin que el menú se mueva.
+  // Un conductor siempre ve la entrada, tenga o no ruta asignada hoy: si no la tiene, la
+  // pantalla se lo dice. Antes dependía de que hubiera un vehículo con el servicio, y un
+  // conductor sin jornada activa no tiene ninguno — así que el módulo le desaparecía.
+  const esConductor = user?.attributes?.['rutas.rol'] === 'conductor';
+  const tieneRutas = esConductor || Object.values(devices).some((d) => d.attributes?.rutas);
+  // Transporte es otro servicio y lleva su propio botón, con el mismo criterio: lo decide el
+  // atributo que el panel admin escribe en el vehículo según el contrato.
+  const tieneTransporte =
+    !esConductor && Object.values(devices).some((d) => d.attributes?.transporte);
+  // Con los dos servicios la barra tiene seis botones. MUI le da a cada uno 80 px de ancho mínimo
+  // y en un teléfono de 390 px el último queda fuera; se les quita ese mínimo para que entren.
+  const compacto = tieneRutas && tieneTransporte;
+  const accion = compacto ? { minWidth: 0, px: 0.5 } : undefined;
+
   const currentSelection = () => {
     if (location.pathname === `/settings/user/${user.id}`) {
       return 'account';
@@ -72,6 +95,12 @@ const BottomMenu = () => {
     }
     if (location.pathname.startsWith('/reports')) {
       return 'reports';
+    }
+    if (location.pathname.startsWith('/rutas') || location.pathname === '/mi-ruta') {
+      return 'rutas';
+    }
+    if (location.pathname.startsWith('/transporte')) {
+      return 'transporte';
     }
     if (location.pathname === '/') {
       return 'map';
@@ -142,6 +171,14 @@ const BottomMenu = () => {
         }
         break;
       }
+      case 'rutas':
+        // Siempre a /rutas: esa pantalla ya sabe si quien entra planifica o conduce, y manda
+        // al conductor a su ruta. Decidirlo acá obligaría a que el menú lo averiguara también.
+        navigate('/rutas');
+        break;
+      case 'transporte':
+        navigate('/transporte');
+        break;
       case 'settings':
         navigate('/settings/preferences?menu=true');
         break;
@@ -159,25 +196,51 @@ const BottomMenu = () => {
   return (
     <Paper square elevation={3}>
       <BottomNavigation value={currentSelection()} onChange={handleSelection} showLabels>
-        <BottomNavigationAction
-          label={t('mapTitle')}
-          icon={
-            <Badge color="error" variant="dot" overlap="circular" invisible={socket !== false}>
-              <MapIcon />
-            </Badge>
-          }
-          value="map"
-        />
-        <BottomNavigationAction
-          label={t('reportTitle')}
-          icon={<DescriptionIcon />}
-          value="reports"
-        />
-        {!deviceReadonly && (
+        {/* El conductor ve dos cosas: su ruta y la puerta de salida.
+            Mapa lleva a "/", que para él vuelve a su ruta —un botón que no hace nada—, y
+            reportes y ajustes no son suyos: su trabajo es entregar. Esto es orden, no
+            seguridad; lo que de verdad lo limita es que solo tiene permiso sobre el vehículo
+            de la jornada que trae activa. */}
+        {!esConductor && (
+          <BottomNavigationAction
+            label={t('mapTitle')}
+            icon={
+              <Badge color="error" variant="dot" overlap="circular" invisible={socket !== false}>
+                <MapIcon />
+              </Badge>
+            }
+            value="map"
+            sx={accion}
+          />
+        )}
+        {!esConductor && (
+          <BottomNavigationAction
+            label={t('reportTitle')}
+            icon={<DescriptionIcon />}
+            value="reports"
+            sx={accion}
+          />
+        )}
+        {/* Solo aparece si alguno de sus vehículos tiene el servicio contratado. Para todos
+            los demás clientes, el menú queda exactamente como estaba. */}
+        {tieneRutas && (
+          <BottomNavigationAction label="Rutas" icon={<RouteIcon />} value="rutas" sx={accion} />
+        )}
+        {/* Transporte es otro servicio: su propio botón, y solo para quien lo contrató. */}
+        {tieneTransporte && (
+          <BottomNavigationAction
+            label="Transporte"
+            icon={<DirectionsBusIcon />}
+            value="transporte"
+            sx={accion}
+          />
+        )}
+        {!deviceReadonly && !esConductor && (
           <BottomNavigationAction
             label={t('settingsTitle')}
             icon={<SettingsIcon />}
             value="settings"
+            sx={accion}
           />
         )}
         {readonly ? (
@@ -185,9 +248,15 @@ const BottomMenu = () => {
             label={t('loginLogout')}
             icon={<ExitToAppIcon />}
             value="logout"
+            sx={accion}
           />
         ) : (
-          <BottomNavigationAction label={t('settingsUser')} icon={<PersonIcon />} value="account" />
+          <BottomNavigationAction
+            label={t('settingsUser')}
+            icon={<PersonIcon />}
+            value="account"
+            sx={accion}
+          />
         )}
       </BottomNavigation>
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>

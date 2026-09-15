@@ -5,6 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 import BottomMenu from './common/components/BottomMenu';
 import SocketController from './SocketController';
 import CachingController from './CachingController';
+import { useEffect } from 'react';
 import { useCatch, useEffectAsync } from './reactHelper';
 import { sessionActions } from './store';
 import UpdateController from './UpdateController';
@@ -60,6 +61,18 @@ const App = () => {
     }
     return null;
   }, []);
+
+  // Un conductor entra a trabajar, no a mirar la flota: se le lleva a su ruta. Sin esto caía
+  // en el mapa principal, que para él está vacío —solo ve el vehículo de su ruta activa— y
+  // tenía que descubrir solo dónde estaba lo suyo.
+  //
+  // El rol viaja en su propia cuenta, así que esto no cuesta ninguna consulta. Solo redirige
+  // desde la raíz: si abre un enlace concreto, se respeta.
+  useEffect(() => {
+    if (user?.attributes?.['rutas.rol'] === 'conductor' && pathname === '/') {
+      navigate('/mi-ruta', { replace: true });
+    }
+  }, [user, pathname, navigate]);
 
   if (user == null) {
     return <Loader />;

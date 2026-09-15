@@ -36,6 +36,9 @@ import LoginPage from './login/LoginPage';
 import RegisterPage from './login/RegisterPage';
 import ResetPasswordPage from './login/ResetPasswordPage';
 import GeofencesPage from './other/GeofencesPage';
+import RutasPage from './rutas/RutasPage';
+import MiRutaPage from './rutas/MiRutaPage';
+import TransportePage from './transporte/TransportePage';
 import GeofencePage from './settings/GeofencePage';
 import { useEffectAsync } from './reactHelper';
 import { devicesActions } from './store';
@@ -125,6 +128,23 @@ const Navigation = () => {
         <Route path="event/:id" element={<EventPage />} />
         <Route path="replay" element={<ReplayPage />} />
         <Route path="geofences" element={<GeofencesPage />} />
+
+        {/* Módulo de Rutas (TelConHN). La pantalla del administrador comprueba por su
+            cuenta si el usuario tiene el servicio; "mi-ruta" es la vista del conductor.
+            Cada sección tiene su dirección —es lo que el menú de la izquierda marca— y
+            "rutas/:id" queda al final: los nombres fijos ganan sobre el comodín. */}
+        <Route path="rutas" element={<RutasPage />} />
+        <Route path="rutas/planificar" element={<RutasPage />} />
+        <Route path="rutas/cargadas" element={<RutasPage />} />
+        <Route path="rutas/usuarios" element={<RutasPage />} />
+        <Route path="rutas/usuarios/:conductorId" element={<RutasPage />} />
+        <Route path="rutas/avisos" element={<RutasPage />} />
+        <Route path="rutas/:id" element={<RutasPage />} />
+        <Route path="mi-ruta" element={<MiRutaPage />} />
+        {/* Transporte (TelConHN): otro servicio, con su propio ícono y su propio menú. La
+            página lee la sección de la dirección, así que todas van al mismo componente. */}
+        <Route path="transporte" element={<TransportePage />} />
+        <Route path="transporte/:seccion" element={<TransportePage />} />
         <Route path="emulator" element={<EmulatorPage />} />
 
         <Route path="settings">

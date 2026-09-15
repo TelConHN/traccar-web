@@ -63,10 +63,15 @@ const PageTitle = ({ breadcrumbs }) => {
 
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
 
+  // Si no hay traducción para la clave, se muestra tal cual. Las pantallas propias de
+  // TelConHN llevan el título escrito en español y no tienen clave en los idiomas de
+  // Traccar; sin esto el encabezado salía en blanco.
+  const texto = (clave) => t(clave) ?? clave;
+
   if (desktop) {
     return (
       <Typography variant="h6" noWrap>
-        {t(breadcrumbs[0])}
+        {texto(breadcrumbs[0])}
       </Typography>
     );
   }
@@ -74,11 +79,11 @@ const PageTitle = ({ breadcrumbs }) => {
     <Breadcrumbs>
       {breadcrumbs.slice(0, -1).map((breadcrumb) => (
         <Typography variant="h6" color="inherit" key={breadcrumb}>
-          {t(breadcrumb)}
+          {texto(breadcrumb)}
         </Typography>
       ))}
       <Typography variant="h6" color="textPrimary">
-        {t(breadcrumbs[breadcrumbs.length - 1])}
+        {texto(breadcrumbs[breadcrumbs.length - 1])}
       </Typography>
     </Breadcrumbs>
   );
