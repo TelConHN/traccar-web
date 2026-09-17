@@ -58,6 +58,7 @@ import MapMarkers from '../map/MapMarkers';
 import maplibregl from 'maplibre-gl';
 import MapScale from '../map/MapScale';
 import rutasApi from './api';
+import transporteApi from '../transporte/api';
 import NuevoUsuarioDialog from './NuevoUsuarioDialog';
 import DiaDelVehiculo from './DiaDelVehiculo';
 import PuntoNuevoEnMapa from './PuntoNuevoEnMapa';
@@ -575,6 +576,21 @@ const PlanificarRuta = ({
         new Date(a.paradas[0]?.horaEstimada ?? 0) - new Date(b.paradas[0]?.horaEstimada ?? 0),
     );
 
+  // Fase 9 de Transporte: si el bus también hace turnos de Transporte, van en la misma línea del
+  // día. Sin Transporte la petición responde 404 y la lista queda vacía.
+  const [turnosTransporte, setTurnosTransporte] = useState([]);
+  useEffect(() => {
+    if (!vehiculo || !fecha) return undefined;
+    let vivo = true;
+    transporteApi
+      .diaDelBus(Number(vehiculo), fecha)
+      .then((r) => vivo && setTurnosTransporte(r.turnos ?? []))
+      .catch(() => vivo && setTurnosTransporte([]));
+    return () => {
+      vivo = false;
+    };
+  }, [vehiculo, fecha]);
+
   const ultimaDelDia = delDia.at(-1) ?? null;
   const nombreUltima = ultimaDelDia ? ultimaDelDia.nombre || `Ruta ${delDia.length}` : '';
   const origenUltima = ultimaDelDia?.paradas[0]?.punto?.nombre ?? 'el origen';
@@ -754,6 +770,14 @@ const PlanificarRuta = ({
 
   const km = resultado?.distanciaKm ?? vistaPrevia?.capturado?.distanciaKm;
   const minutos = resultado?.minutosEstimados ?? vistaPrevia?.capturado?.minutosEstimados;
+  const turnoQueChoca =
+    seleccion.length >= 2 && minutos != null
+      ? turnosTransporte.find(
+          (t) =>
+            salidaEn(fecha, horaSalida) < new Date(t.fin) &&
+            new Date(t.salida) < finDeNueva(fecha, horaSalida, minutos),
+        )
+      : null;
 
   // Se pregunta al cambiar el día, la hora o lo que dura la ruta. Con medio segundo de respiro:
   // mover la hora con las flechas no puede disparar una consulta por minuto tocado.
@@ -1045,16 +1069,30 @@ const PlanificarRuta = ({
               dos bloques encimados se leen en un segundo, como cualquier calendario. Y cada
               salida dice su resultado antes de elegirla, en vez de un botón con una palabra
               técnica que hay que adivinar. */}
-          {delDia.length > 0 && (
+          {turnoQueChoca && (
+            <Alert severity="warning">
+              Ese vehículo hace «{turnoQueChoca.nombre}» (Transporte) a esa hora. Corré la salida a
+              después de las {hhmm(new Date(turnoQueChoca.fin))} o pasala a otro día.
+            </Alert>
+          )}
+          {delDia.length + turnosTransporte.length > 0 && (
             <Paper variant="outlined" sx={{ p: 1.5 }}>
               <DiaDelVehiculo
                 titulo={`Lo que ya tiene el ${diaCorto(fecha)}`}
-                rutas={delDia.map((j, i) => ({
-                  id: j.id,
-                  nombre: j.nombre || `Ruta ${i + 1}`,
-                  salida: j.paradas[0]?.horaEstimada,
-                  fin: finDe(j),
-                }))}
+                rutas={[
+                  ...delDia.map((j, i) => ({
+                    id: j.id,
+                    nombre: j.nombre || `Ruta ${i + 1}`,
+                    salida: j.paradas[0]?.horaEstimada,
+                    fin: finDe(j),
+                  })),
+                  ...turnosTransporte.map((t) => ({
+                    id: t.id,
+                    nombre: `🚌 ${t.nombre}`,
+                    salida: t.salida,
+                    fin: t.fin,
+                  })),
+                ]}
                 nueva={
                   seleccion.length >= 2
                     ? {

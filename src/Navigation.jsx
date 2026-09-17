@@ -33,6 +33,7 @@ import SpeedLimitPage from './settings/SpeedLimitPage';
 import CommandPage from './settings/CommandPage';
 import StatisticsPage from './reports/StatisticsPage';
 import LoginPage from './login/LoginPage';
+import SeguirPage from './transporte/SeguirPage';
 import RegisterPage from './login/RegisterPage';
 import ResetPasswordPage from './login/ResetPasswordPage';
 import GeofencesPage from './other/GeofencesPage';
@@ -117,6 +118,9 @@ const Navigation = () => {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      {/* Pública, sin sesión: quien sigue el bus con un enlace de Transporte. Fuera de App a
+          propósito: sin menú ni enlaces al resto de la aplicación. */}
+      <Route path="/seguir/:codigo" element={<SeguirPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/change-server" element={<ChangeServerPage />} />
@@ -145,6 +149,7 @@ const Navigation = () => {
             página lee la sección de la dirección, así que todas van al mismo componente. */}
         <Route path="transporte" element={<TransportePage />} />
         <Route path="transporte/:seccion" element={<TransportePage />} />
+        <Route path="transporte/:seccion/:id" element={<TransportePage />} />
         <Route path="emulator" element={<EmulatorPage />} />
 
         <Route path="settings">

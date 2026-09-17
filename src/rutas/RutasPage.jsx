@@ -46,6 +46,9 @@ import AgregarParadasDialog from './AgregarParadasDialog';
 import Avisos from './Avisos';
 import FiltrosRutas from './FiltrosRutas';
 import ConductorFicha from './ConductorFicha';
+import TourGuiado, { useTour } from '../servicios/TourGuiado';
+import BarraIntroduccion from '../servicios/BarraIntroduccion';
+import { pasosRutas } from '../servicios/pasosTour';
 
 const useStyles = makeStyles()((theme) => ({
   // `minHeight: 0` no es decorativo: un elemento flex nunca se encoge por debajo de su
@@ -614,6 +617,8 @@ const RutasPage = () => {
   // Mis rutas, Planificar y Usuarios son de UNA cuenta: un administrador mirando todos tiene que
   // elegir el cliente primero. Rutas cargadas y Avisos sí se pueden mirar sin elegir.
   const requiereCliente = viendoTodos && [0, 1, 3].includes(seccion);
+  // Introducción guiada: sola la primera vez que alguien que planifica entra a Rutas.
+  const tour = useTour('rutas', Boolean(perfil?.planifica && !requiereCliente));
 
   // Con un id en la URL se muestra esa jornada en el mapa. Conserva el menú de la izquierda
   // porque se llega desde «Rutas cargadas»: salir del detalle es elegir otra cosa ahí mismo,
@@ -629,8 +634,27 @@ const RutasPage = () => {
   }
 
   return (
-    <PageLayout menu={<RutasMenu />} breadcrumbs={['Rutas']}>
+    <PageLayout
+      menu={
+        <div data-tour="menu">
+          <RutasMenu />
+        </div>
+      }
+      breadcrumbs={['Rutas']}
+    >
       {admin && <SelectorCliente servicio="rutas" cliente={clienteElegido} />}
+      {perfil?.planifica && !requiereCliente && (
+        <BarraIntroduccion demo={perfil.demo} onAbrir={tour.abrir} />
+      )}
+      <TourGuiado
+        abierto={tour.abierto}
+        onCerrar={tour.cerrar}
+        pasos={pasosRutas({
+          planifica: perfil?.planifica,
+          gestionaUsuarios: perfil?.gestionaUsuarios,
+          demo: perfil?.demo,
+        })}
+      />
       {cargando && <LinearProgress />}
       {error && (
         <Alert severity="error" onClose={() => setError('')} sx={{ m: 2 }}>
@@ -666,7 +690,7 @@ const RutasPage = () => {
       {perfil?.planifica && !requiereCliente && (
         // La clave hace que cambiar de cliente arranque cada sección de cero: sin eso, el
         // planificador conservaría el vehículo o las paradas del cliente anterior.
-        <div className={classes.cuerpo} key={clienteId ?? 'todos'}>
+        <div className={classes.cuerpo} key={clienteId ?? 'todos'} data-tour="contenido">
           {seccion === 0 && (
             <>
               {plantillas.length > 1 && (

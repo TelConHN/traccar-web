@@ -46,6 +46,7 @@ import MapPositions from '../map/MapPositions';
 import MapCamera from '../map/MapCamera';
 import BottomMenu from '../common/components/BottomMenu';
 import { useEffectAsync } from '../reactHelper';
+import MisTurnos from '../transporte/MisTurnos';
 import rutasApi from './api';
 
 const useStyles = makeStyles()((theme) => ({
@@ -363,8 +364,15 @@ const MiRutaPage = () => {
               </Alert>
             )}
 
+            {/* Los turnos de Transporte del día, si el conductor tiene. Es la misma lista, con
+                los dos servicios ordenados por hora: él no tiene que saber que son dos
+                productos. */}
+            {!previa && <MisTurnos />}
+
             {!cargando && !jornadaId && (
-              <Alert severity="info">No tenés ninguna ruta asignada en este momento.</Alert>
+              <Alert severity="info">
+                No tenés ninguna ruta de reparto asignada en este momento.
+              </Alert>
             )}
 
             {/* Las rutas del día, en el orden en que se manejan. Solo aparece cuando hay más

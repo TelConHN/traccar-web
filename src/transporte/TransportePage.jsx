@@ -37,7 +37,23 @@ import { useAdministrator } from '../common/util/permissions';
 import SelectorCliente from '../servicios/SelectorCliente';
 import { useClienteAdmin } from '../servicios/clienteAdmin';
 import TransporteMenu from './TransporteMenu';
+import Lineas from './Lineas';
+import NuevaLinea from './NuevaLinea';
+import LineaDetalle from './LineaDetalle';
+import Hoy from './Hoy';
+import Turnos from './Turnos';
+import Alertas from './Alertas';
+import ViajeDetalle from './ViajeDetalle';
+import Equipos from './Equipos';
+import Reportes from './Reportes';
+import Pasajeros from './Pasajeros';
+import Compartir from './Compartir';
+import Abordaje from './Abordaje';
+import Conductores from './Conductores';
 import transporteApi from './api';
+import TourGuiado, { useTour } from '../servicios/TourGuiado';
+import BarraIntroduccion from '../servicios/BarraIntroduccion';
+import { pasosTransporte } from '../servicios/pasosTour';
 import { OPERACIONES, ORDEN_OPERACIONES } from './operaciones';
 import { existeSeccion, rutaDe, seccionDe, seccionesVisibles } from './secciones';
 
@@ -253,6 +269,11 @@ const SeccionVacia = ({ seccion }) => (
 
 const TransportePage = () => {
   const { pathname } = useLocation();
+  // Lo que sigue a la sección en la dirección: `/transporte/recorridos/nueva` o el id de uno.
+  const subruta = pathname.split('/')[3] ?? null;
+  // `/transporte/viajes/:id` no es una sección del menú: es el detalle al que llevan «Hoy», las
+  // alertas y los reportes. Se resuelve antes que la sección para que el menú marque «Hoy».
+  const viajeId = pathname.startsWith('/transporte/viajes/') ? subruta : null;
   const navigate = useNavigate();
   const admin = useAdministrator();
   // Transporte es entero de UNA cuenta —su tipo de operación, sus recorridos, su gente—: un
@@ -286,13 +307,20 @@ const TransportePage = () => {
   // «Pasajeros» por un enlace copiado— o cuando todavía falta elegir el tipo de operación. Se
   // cambia la dirección y no solo lo que se dibuja, para que el menú marque dónde está.
   useEffect(() => {
-    if (!perfil || pedida.clave === 'hoy') return;
+    if (!perfil || pedida.clave === 'hoy' || viajeId) return;
     if (requiereCliente || sinServicio || !operacion || !existeSeccion(pedida, operacion)) {
       navigate('/transporte', { replace: true });
     }
   }, [perfil, operacion, pedida, navigate, sinServicio, requiereCliente]);
 
   const guardada = (nueva) => setPerfil((p) => ({ ...p, operacion: nueva }));
+
+  // Introducción guiada: sola la primera vez que la persona entra con el tipo de transporte ya
+  // elegido (antes solo hay una pregunta, no hay nada que recorrer).
+  const tour = useTour(
+    'transporte',
+    Boolean(perfil && operacion && !sinServicio && !requiereCliente),
+  );
 
   let contenido = null;
   if (perfil && !sinServicio && requiereCliente) {
@@ -313,17 +341,77 @@ const TransportePage = () => {
           recorridos.
         </Alert>
       );
+    } else if (viajeId) {
+      contenido = <ViajeDetalle key={viajeId} viajeId={viajeId} puedeEditar={perfil.configura} />;
     } else if (pedida.clave === 'hoy') {
-      contenido = <PrimerosPasos perfil={perfil} />;
-    } else if (pedida.clave === 'configuracion' && perfil.configura) {
+      // Con viajes de hoy, la tira de cada recorrido; sin viajes, los primeros pasos.
       contenido = (
-        <EleccionOperacion
-          key={`${clienteId ?? 'propia'}-${operacion}`}
-          actual={operacion}
-          onGuardada={guardada}
-          esCambio
+        <Hoy
+          key={clienteId ?? 'propia'}
+          perfil={perfil}
+          primerosPasos={<PrimerosPasos perfil={perfil} />}
         />
       );
+    } else if (pedida.clave === 'horarios') {
+      contenido = <Turnos key={clienteId ?? 'propia'} perfil={perfil} />;
+    } else if (pedida.clave === 'alertas' && perfil.configura) {
+      contenido = <Alertas key={clienteId ?? 'propia'} puedeEditar={perfil.configura} />;
+    } else if (pedida.clave === 'equipos' && perfil.configura) {
+      contenido = <Equipos key={clienteId ?? 'propia'} perfil={perfil} />;
+    } else if (pedida.clave === 'reportes' && perfil.configura) {
+      contenido = <Reportes key={clienteId ?? 'propia'} perfil={perfil} />;
+    } else if (pedida.clave === 'conductores') {
+      contenido = <Conductores key={clienteId ?? 'propia'} perfil={perfil} />;
+    } else if (pedida.clave === 'pasajeros' && perfil.configura) {
+      contenido = <Pasajeros key={clienteId ?? 'propia'} operacion={operacion} />;
+    } else if (pedida.clave === 'compartir' && perfil.configura) {
+      contenido = <Compartir key={clienteId ?? 'propia'} operacion={operacion} />;
+    } else if (pedida.clave === 'configuracion' && perfil.configura) {
+      contenido = (
+        <>
+          <EleccionOperacion
+            key={`${clienteId ?? 'propia'}-${operacion}`}
+            actual={operacion}
+            onGuardada={guardada}
+            esCambio
+          />
+          {operacion !== 'linea' && (
+            <Abordaje
+              activo={perfil.marcaAbordaje}
+              onCambio={(activo) => setPerfil((p) => ({ ...p, marcaAbordaje: activo }))}
+            />
+          )}
+        </>
+      );
+    } else if (pedida.clave === 'recorridos') {
+      // Un conductor mira los recorridos pero no los cambia (el servidor también lo impide).
+      const puedeEditar = perfil.configura;
+      if (subruta === 'nueva' && puedeEditar) {
+        contenido = (
+          <NuevaLinea
+            key={clienteId ?? 'propia'}
+            vehiculos={perfil.vehiculos}
+            operacion={operacion}
+          />
+        );
+      } else if (subruta) {
+        contenido = (
+          <LineaDetalle
+            key={subruta}
+            lineaId={subruta}
+            puedeEditar={puedeEditar}
+            operacion={operacion}
+          />
+        );
+      } else {
+        contenido = (
+          <Lineas
+            key={clienteId ?? 'propia'}
+            puedeEditar={puedeEditar}
+            descripcion={seccion.descripcion}
+          />
+        );
+      }
     } else {
       contenido = <SeccionVacia seccion={seccion} />;
     }
@@ -333,10 +421,28 @@ const TransportePage = () => {
     <PageLayout
       // Sin vehículos con el servicio el menú queda solo con «Hoy», que es donde se explica cómo
       // activarlo: una lista de secciones donde no se puede hacer nada invita a recorrerlas.
-      menu={<TransporteMenu operacion={sinServicio || requiereCliente ? null : operacion} />}
-      breadcrumbs={pedida.clave === 'hoy' ? ['Transporte'] : ['Transporte', seccion.titulo]}
+      menu={
+        <div data-tour="menu">
+          <TransporteMenu operacion={sinServicio || requiereCliente ? null : operacion} />
+        </div>
+      }
+      breadcrumbs={
+        viajeId
+          ? ['Transporte', 'Viaje']
+          : pedida.clave === 'hoy'
+            ? ['Transporte']
+            : ['Transporte', seccion.titulo]
+      }
     >
       {admin && <SelectorCliente servicio="transporte" cliente={clienteElegido} />}
+      {perfil && operacion && !sinServicio && !requiereCliente && (
+        <BarraIntroduccion demo={perfil.demo} onAbrir={tour.abrir} />
+      )}
+      <TourGuiado
+        abierto={tour.abierto}
+        onCerrar={tour.cerrar}
+        pasos={pasosTransporte({ operacion, configura: perfil?.configura, demo: perfil?.demo })}
+      />
       {!perfil && !error && <LinearProgress />}
       {error && (
         <Alert severity="error" sx={{ m: 2 }}>
@@ -360,7 +466,12 @@ const TransportePage = () => {
             activarlo.
           </Alert>
         ))}
-      {contenido}
+      <div
+        data-tour="contenido"
+        style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+      >
+        {contenido}
+      </div>
     </PageLayout>
   );
 };

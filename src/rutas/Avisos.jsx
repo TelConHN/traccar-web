@@ -106,6 +106,7 @@ const Avisos = ({ onLeidas }) => {
   const abrir = async (n) => {
     if (!n.leida) await marcar([n.id]);
     if (n.jornadaId) navigate(`/rutas/${n.jornadaId}`);
+    else if (n.viajeId) navigate(`/transporte/viajes/${n.viajeId}`);
   };
 
   const cambiarCanal = async (tipo, canal) => {
