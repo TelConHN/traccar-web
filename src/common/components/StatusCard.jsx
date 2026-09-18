@@ -148,6 +148,8 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
   const [anchorEl, setAnchorEl] = useState(null);
 
   const [removing, setRemoving] = useState(false);
+  // Bloquear el arranque del vehículo: comando al GPS en un carro real, y en una demo simulada
+  // una marca que el simulador obedece (ver BloqueoMotorDialog).
 
   const handleRemove = useCatch(async (removed) => {
     if (removed) {
@@ -272,23 +274,29 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                     <SendIcon />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title={t('sharedEdit')}>
-                  <IconButton
-                    onClick={() => navigate(`/settings/device/${deviceId}`)}
-                    disabled={disableActions || deviceReadonly}
-                  >
-                    <EditIcon />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title={t('sharedRemove')}>
-                  <IconButton
-                    color="error"
-                    onClick={() => setRemoving(true)}
-                    disabled={disableActions || deviceReadonly}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </Tooltip>
+                {/* Editar y borrar el vehículo es de TelConHN: el cliente no los ve, ni apagados.
+                    Un botón que nunca se puede usar solo enseña a no mirar la barra. */}
+                {!deviceReadonly && (
+                  <>
+                    <Tooltip title={t('sharedEdit')}>
+                      <IconButton
+                        onClick={() => navigate(`/settings/device/${deviceId}`)}
+                        disabled={disableActions}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title={t('sharedRemove')}>
+                      <IconButton
+                        color="error"
+                        onClick={() => setRemoving(true)}
+                        disabled={disableActions}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </>
+                )}
               </CardActions>
             </Card>
           </Rnd>

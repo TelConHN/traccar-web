@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Accordion,
@@ -27,6 +28,11 @@ const CommandDevicePage = () => {
   const [savedId, setSavedId] = useState(0);
   const [item, setItem] = useState({});
 
+  // En un vehículo simulado no hay GPS al que mandarle el comando: el servidor marca el vehículo
+  // y el simulador obedece —se queda parado con el motor apagado—, que es lo que una demo tiene
+  // que mostrar. En un vehículo real va por el camino de siempre.
+  const esDemo = useSelector((state) => state.devices.items[id]?.attributes?.demo === true);
+
   const handleSend = useCatch(async () => {
     let command;
     if (savedId) {
@@ -37,6 +43,16 @@ const CommandDevicePage = () => {
     }
 
     command.deviceId = parseInt(id, 10);
+
+    if (esDemo && (command.type === 'engineStop' || command.type === 'engineResume')) {
+      await fetchOrThrow(`/api/rutas/vehiculos/${parseInt(id, 10)}/motor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bloquear: command.type === 'engineStop' }),
+      });
+      navigate(-1);
+      return;
+    }
 
     await fetchOrThrow('/api/commands/send', {
       method: 'POST',

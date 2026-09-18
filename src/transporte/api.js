@@ -56,6 +56,7 @@ const transporteApi = {
   ajustar: (datos) => enviar('POST', '/lineas/ajustar', datos),
   proponerParadas: (datos) => enviar('POST', '/lineas/proponer-paradas', datos),
   trazar: (puntos) => enviar('POST', '/lineas/trazar', { puntos }),
+  acomodarPunto: (puntos, indice) => enviar('POST', '/lineas/acomodar', { puntos, indice }),
   importar: (texto) => enviar('POST', '/lineas/importar', { texto }),
   crearLinea: (datos) => enviar('POST', '/lineas', datos),
   editarLinea: (id, datos) => enviar('PUT', `/lineas/${id}`, datos),

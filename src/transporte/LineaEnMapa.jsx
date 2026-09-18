@@ -9,6 +9,7 @@ import { useEffect, useId } from 'react';
 import turfCircle from '@turf/circle';
 import { useTheme } from '@mui/material/styles';
 import { map } from '../map/core/MapView';
+import { findFonts } from '../map/core/mapUtil';
 
 // `[[lat, lon]]` → GeoJSON LineString ([lon, lat]).
 const lineaGeoJson = (coordenadas) => ({
@@ -19,7 +20,7 @@ const lineaGeoJson = (coordenadas) => ({
   },
 });
 
-const LineaEnMapa = ({ coordenadas, crudo, paradas, color, resaltada }) => {
+const LineaEnMapa = ({ coordenadas, crudo, paradas, color, resaltada, etiqueta }) => {
   const id = useId();
   const theme = useTheme();
   const colorLinea = color ?? theme.palette.primary.main;
@@ -46,7 +47,30 @@ const LineaEnMapa = ({ coordenadas, crudo, paradas, color, resaltada }) => {
       paint: {
         'line-color': colorLinea,
         'line-width': resaltada ? 5 : 3,
-        'line-opacity': resaltada ? 1 : 0.6,
+        // El que no está elegido queda bien tenue, no apenas más claro: con tres trazos encima,
+        // 0.6 se seguía leyendo como «otro recorrido igual de importante».
+        'line-opacity': resaltada ? 1 : 0.3,
+      },
+    });
+    // El texto va sobre la propia línea y se repite: un tramo largo se lee sin buscar dónde
+    // empieza. Sin etiqueta la capa no estorba (no dibuja nada).
+    map.addLayer({
+      id: `${id}-texto`,
+      source: `${id}-linea`,
+      type: 'symbol',
+      layout: {
+        'symbol-placement': 'line',
+        'symbol-spacing': 220,
+        'text-field': ['coalesce', ['get', 'etiqueta'], ''],
+        'text-size': 12,
+        // La fuente sale del estilo cargado, como en el resto de las capas: una fuente que el
+        // estilo no tenga deja el texto sin dibujar, sin avisar.
+        'text-font': findFonts(map),
+      },
+      paint: {
+        'text-color': colorLinea,
+        'text-halo-color': '#fff',
+        'text-halo-width': 2,
       },
     });
     map.addSource(`${id}-radios`, { type: 'geojson', data: vacio });
@@ -79,7 +103,14 @@ const LineaEnMapa = ({ coordenadas, crudo, paradas, color, resaltada }) => {
       source: `${id}-paradas`,
       type: 'symbol',
       layout: {
-        'text-field': ['get', 'orden'],
+        // La terminal dice que lo es: en un circuito, el número 1 solo no cuenta que ahí también
+        // se vuelve.
+        'text-field': [
+          'case',
+          ['get', 'terminal'],
+          ['concat', ['get', 'orden'], ' · Salida'],
+          ['get', 'orden'],
+        ],
         'text-size': 11,
         'text-offset': [0, -1.4],
         'text-allow-overlap': true,
@@ -92,7 +123,7 @@ const LineaEnMapa = ({ coordenadas, crudo, paradas, color, resaltada }) => {
     });
 
     return () => {
-      for (const capa of ['numeros', 'paradas', 'radios', 'linea', 'crudo']) {
+      for (const capa of ['numeros', 'paradas', 'radios', 'texto', 'linea', 'crudo']) {
         if (map.getLayer(`${id}-${capa}`)) map.removeLayer(`${id}-${capa}`);
       }
       for (const fuente of ['paradas', 'radios', 'linea', 'crudo']) {
@@ -103,8 +134,11 @@ const LineaEnMapa = ({ coordenadas, crudo, paradas, color, resaltada }) => {
   }, []);
 
   useEffect(() => {
-    map.getSource(`${id}-linea`)?.setData(lineaGeoJson(coordenadas));
-  }, [coordenadas]);
+    map.getSource(`${id}-linea`)?.setData({
+      ...lineaGeoJson(coordenadas),
+      properties: { etiqueta: etiqueta ?? '' },
+    });
+  }, [coordenadas, etiqueta]);
 
   useEffect(() => {
     map.getSource(`${id}-crudo`)?.setData(lineaGeoJson(crudo));
@@ -113,7 +147,7 @@ const LineaEnMapa = ({ coordenadas, crudo, paradas, color, resaltada }) => {
   useEffect(() => {
     if (map.getLayer(`${id}-linea`)) {
       map.setPaintProperty(`${id}-linea`, 'line-width', resaltada ? 5 : 3);
-      map.setPaintProperty(`${id}-linea`, 'line-opacity', resaltada ? 1 : 0.6);
+      map.setPaintProperty(`${id}-linea`, 'line-opacity', resaltada ? 1 : 0.3);
     }
   }, [resaltada]);
 

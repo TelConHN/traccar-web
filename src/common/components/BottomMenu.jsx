@@ -200,7 +200,7 @@ const BottomMenu = () => {
   };
 
   return (
-    <Paper square elevation={3}>
+    <Paper square elevation={3} data-tour="menu-abajo">
       <BottomNavigation value={currentSelection()} onChange={handleSelection} showLabels>
         {/* El conductor ve dos cosas: su ruta y la puerta de salida.
             Mapa lleva a "/", que para él vuelve a su ruta —un botón que no hace nada—, y

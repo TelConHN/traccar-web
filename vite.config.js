@@ -26,7 +26,11 @@ export default defineConfig(() => ({
     VitePWA({
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       workbox: {
-        navigateFallbackDenylist: [/^\/api/],
+        // /seguir/: la página pública del bus. Siempre se pide al servidor, nunca la copia guardada
+        // de la app: quien abre el enlace suele usar también la app GPS en ese navegador, y con una
+        // versión vieja guardada (que no conoce esta ruta) la página salía en blanco hasta aceptar
+        // la actualización.
+        navigateFallbackDenylist: [/^\/api/, /^\/seguir\//],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,woff,woff2,mp3}'],
       },

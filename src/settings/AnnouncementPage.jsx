@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import {
   Accordion,
   AccordionSummary,
@@ -14,6 +15,7 @@ import { useTranslation } from '../common/components/LocalizationProvider';
 import PageLayout from '../common/components/PageLayout';
 import SettingsMenu from './components/SettingsMenu';
 import { useCatchCallback } from '../reactHelper';
+import { useAdministrator } from '../common/util/permissions';
 import useSettingsStyles from './common/useSettingsStyles';
 import SelectField from '../common/components/SelectField';
 import { prefixString } from '../common/util/stringUtils';
@@ -23,6 +25,16 @@ const AnnouncementPage = () => {
   const navigate = useNavigate();
   const { classes } = useSettingsStyles();
   const t = useTranslation();
+
+  // Con la dirección escrita a mano tampoco: mandar un anuncio a toda la cuenta lo habilita
+  // TelConHN (`anunciosEnabled`), no viene con el servicio. Ver SettingsMenu.
+  const admin = useAdministrator();
+  const permitido = useSelector(
+    (state) => admin || !!state.session.user.attributes?.anunciosEnabled,
+  );
+  useEffect(() => {
+    if (!permitido) navigate('/settings/preferences', { replace: true });
+  }, [permitido, navigate]);
 
   const [users, setUsers] = useState([]);
   const [notificator, setNotificator] = useState();

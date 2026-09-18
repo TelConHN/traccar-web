@@ -33,10 +33,15 @@ import AltRouteIcon from '@mui/icons-material/AltRoute';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import LoopIcon from '@mui/icons-material/Loop';
 import UndoIcon from '@mui/icons-material/Undo';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { map } from '../map/core/MapView';
 import transporteApi from './api';
 import { prepararLinea, metroSobre, muestrear } from './geo';
 
+/// Hasta cuántos puntos guía se muestran de a uno en la lista (arriba de eso se agrupan: un
+/// viaje grabado deja decenas y la lista dejaría de servir para leer el orden).
+const LISTA_GUIAS_SUELTAS = 12;
 /// Tope del servidor (`POST /lineas/trazar`).
 export const MAX_PUNTOS = 50;
 /// Un toque a menos de esto (en pantalla) de la línea se inserta entre dos puntos.
@@ -79,7 +84,70 @@ export const usePuntos = (inicial = []) => {
   return { puntos, cambiar, deshacer, puedeDeshacer: historial.length > 0, reiniciar };
 };
 
-const SIN_TRAZO = { coordenadas: [], metros: 0, ajustados: [], cargando: false, error: '' };
+const SIN_TRAZO = {
+  coordenadas: [],
+  metros: 0,
+  ajustados: [],
+  tramos: [],
+  cargando: false,
+  error: '',
+};
+
+/// Metros en línea recta entre dos coordenadas [lat, lon].
+const enLineaRecta = ([la1, lo1], [la2, lo2]) =>
+  Math.hypot((lo2 - lo1) * 111320 * Math.cos((la1 * Math.PI) / 180), (la2 - la1) * 110540);
+
+/**
+ * Los tramos donde el trazo se fue dando la vuelta.
+ *
+ * El motor une los puntos marcados por **las calles más rápidas**, y en el orden en que están en
+ * la lista. Dos cosas normales rompen eso: marcar un punto fuera de orden (queda al final y el
+ * trazo va y vuelve) y tocar del lado contrario de un bulevar (hay que dar la vuelta en el
+ * retorno). Los dos casos se ven igual: ese tramo mide muchísimo más que la distancia en recta.
+ *
+ * El tope (más del doble en recta Y al menos 300 m de más) deja pasar lo normal de una ciudad
+ * —calles de un solo sentido, un rodeo corto— y marca lo que de verdad es un enredo.
+ */
+export function tramosQueDanVuelta(trazado, puntos) {
+  const base =
+    trazado.ajustados?.length === puntos.length
+      ? trazado.ajustados
+      : puntos.map((p) => [p.latitud, p.longitud]);
+  return (trazado.tramos ?? [])
+    .map((metros, i) => {
+      const recta = enLineaRecta(base[i], base[i + 1]);
+      return { desde: i, hasta: i + 1, metros, recta, demas: Math.round(metros - recta) };
+    })
+    .filter((t) => t.metros > t.recta * 2 + 300);
+}
+
+/// Aplica lo que contestó el servidor sobre un punto enredado: quitarlo, o moverlo de calle y/o
+/// de lugar en el orden. Pura: el servidor decide, esto solo arma la lista nueva.
+export function aplicarAcomodo(puntos, indice, r) {
+  const otros = puntos.filter((_, k) => k !== indice);
+  if (r.accion === 'quitar') return otros;
+  const movido = { ...puntos[indice], latitud: r.latitud, longitud: r.longitud };
+  const k = Math.max(0, Math.min(otros.length, r.posicion));
+  return [...otros.slice(0, k), movido, ...otros.slice(k)];
+}
+
+/// Cómo contarle a la persona lo que se hizo con su punto.
+export function loQueSeHizo(r, indice) {
+  if (r.accion === 'quitar') return 'Ese punto obligaba a dar toda la vuelta, así que lo quité.';
+  if (r.accion === 'nada') {
+    return 'Ese punto ya estaba en su mejor lugar: la vuelta la dan las calles de la zona, no el punto.';
+  }
+  const mudanza =
+    r.movidoMetros >= 8
+      ? `Lo pasé ${r.movidoMetros} m, a la calle de al lado`
+      : 'Lo dejé en su calle';
+  const orden =
+    r.posicion === indice
+      ? 'sin cambiarlo de orden'
+      : `y lo puse en el lugar ${r.posicion + 1} del orden`;
+  const ahorro = Math.max(0, r.metrosAntes - r.metros);
+  return `${mudanza} ${orden}. El recorrido pasó de ${(r.metrosAntes / 1000).toFixed(1)} a ${(r.metros / 1000).toFixed(1)} km${ahorro > 50 ? ` (${(ahorro / 1000).toFixed(1)} km menos)` : ''}.`;
+}
 
 export const useTrazado = (puntos, activo = true) => {
   const [estado, setEstado] = useState(SIN_TRAZO);
@@ -100,6 +168,7 @@ export const useTrazado = (puntos, activo = true) => {
             coordenadas: r.coordenadas,
             metros: r.metros,
             ajustados: r.puntos ?? [],
+            tramos: r.tramos ?? [],
             cargando: false,
             error: '',
           });
@@ -289,17 +358,62 @@ export const PanelTrazo = ({
       ),
     );
 
-  // Filas: cada parada sola; los puntos guía seguidos, agrupados en una fila.
+  const vueltas = tramosQueDanVuelta(trazado, puntos);
+  const [acomodando, setAcomodando] = useState(false);
+  const [hecho, setHecho] = useState('');
+
+  /// Cómo se llama el punto número `i` en un aviso: «la parada 2» o «el punto guía».
+  const nombreDe = (i) => {
+    const p = puntos[i];
+    if (!p) return 'el final';
+    if (p.guia) return 'un punto guía';
+    const n = puntos.slice(0, i + 1).filter((x) => !x.guia).length;
+    return `la parada ${n}`;
+  };
+
+  /// Le pide al servidor que pruebe ese punto en las calles de al lado y en cada lugar del orden,
+  /// con el motor de ruteo. Antes se decidía acá con la distancia en línea recta y se equivocaba:
+  /// para pasar al otro carril de un bulevar hay que ir hasta el retorno, y en recta eso no se ve.
+  const acomodar = async (i) => {
+    setAcomodando(true);
+    setHecho('');
+    try {
+      const r = await transporteApi.acomodarPunto(
+        puntos.map((x) => ({ latitud: x.latitud, longitud: x.longitud, guia: Boolean(x.guia) })),
+        i,
+      );
+      if (r.accion !== 'nada') onCambiar(aplicarAcomodo(puntos, i, r));
+      setHecho(loQueSeHizo(r, i));
+    } catch (e) {
+      setHecho(e.message);
+    } finally {
+      setAcomodando(false);
+    }
+  };
+
+  /// Sube o baja un punto un lugar en el orden. Es lo que faltaba para arreglar a mano lo que el
+  /// motor no puede adivinar: «este punto guía se pasa ANTES de la parada 3, no después».
+  const mover = (i, salto) => {
+    const destino = i + salto;
+    if (destino < 0 || destino >= puntos.length) return;
+    const copia = [...puntos];
+    [copia[i], copia[destino]] = [copia[destino], copia[i]];
+    onCambiar(copia);
+  };
+
+  // Una fila por punto, en el orden real, para poder moverlo. Los puntos guía seguidos se agrupan
+  // solo cuando son muchos —un viaje grabado deja decenas— y ahí no se mueven de a uno: se
+  // arrastran en el mapa.
   const filas = [];
   let numero = 0;
-  puntos.forEach((p) => {
+  puntos.forEach((p, i) => {
     if (p.guia) {
       const anterior = filas[filas.length - 1];
-      if (anterior?.guias) anterior.guias.push(p);
-      else filas.push({ clave: `g${p.id}`, guias: [p] });
+      if (anterior?.guias && (soloGuias || guias > LISTA_GUIAS_SUELTAS)) anterior.guias.push(p);
+      else filas.push({ clave: `g${p.id}`, guias: [p], indice: i });
     } else {
       numero += 1;
-      filas.push({ clave: `p${p.id}`, parada: p, numero });
+      filas.push({ clave: `p${p.id}`, parada: p, numero, indice: i });
     }
   });
 
@@ -332,8 +446,17 @@ export const PanelTrazo = ({
       <Typography variant="body2" color="text.secondary">
         {soloGuias
           ? 'Arrastrá los puntos a la calle correcta y tocá los que sobran para quitarlos. Tocá sobre la línea para agregar uno entre dos.'
-          : 'Tocá el mapa en el orden del recorrido. Un punto guía no es parada: solo obliga a pasar por esa calle. Tocá sobre la línea para meter un punto entre dos, y arrastrá cualquiera para moverlo.'}
+          : 'Tocá el mapa en el orden del recorrido, de la primera parada a la última.'}
       </Typography>
+      {!soloGuias && (
+        <Typography variant="body2" color="text.secondary">
+          Entre dos puntos, el trazo va por <strong>las calles más rápidas</strong>. Si el bus va
+          por otra —porque recoge gente, evita un tramo o da una vuelta que solo él hace—, tocá{' '}
+          <strong>Punto guía</strong> sobre esa calle: no es una parada, solo obliga a pasar por
+          ahí. Mientras más puntos guía, más fiel queda; lo más fiel de todo es{' '}
+          <strong>Grabar un viaje</strong> que el bus ya hizo.
+        </Typography>
+      )}
 
       {puntos.length >= 2 && (
         <Box>
@@ -346,6 +469,41 @@ export const PanelTrazo = ({
         </Box>
       )}
       {trazado.error && <Alert severity="error">{trazado.error}</Alert>}
+      {hecho && (
+        <Alert severity="info" onClose={() => setHecho('')}>
+          {hecho}
+        </Alert>
+      )}
+
+      {/* El enredo que se ve al dibujar: el trazo va y vuelve. Casi siempre es un punto marcado
+          fuera de orden o del lado contrario de un bulevar, y se arregla en un toque. */}
+      {vueltas.slice(0, 2).map((t) => (
+        <Alert
+          key={`${t.desde}-${t.hasta}`}
+          severity="warning"
+          sx={{ '& .MuiAlert-message': { width: '100%' } }}
+        >
+          <Typography variant="body2">
+            Entre {nombreDe(t.desde)} y {nombreDe(t.hasta)} el trazo <strong>da la vuelta</strong>:{' '}
+            {(t.metros / 1000).toFixed(1)} km para {(t.recta / 1000).toFixed(1)} km en línea recta.
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block">
+            Suele pasar cuando el punto quedó fuera de orden o del lado contrario de un bulevar.
+          </Typography>
+          <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
+            <Button size="small" disabled={acomodando} onClick={() => acomodar(t.hasta)}>
+              {acomodando ? 'Probando calles…' : `Acomodar ${nombreDe(t.hasta)}`}
+            </Button>
+            <Button
+              size="small"
+              color="error"
+              onClick={() => onCambiar(puntos.filter((_, k) => k !== t.hasta))}
+            >
+              Quitarlo
+            </Button>
+          </Stack>
+        </Alert>
+      ))}
       {puntos.length >= MAX_PUNTOS && (
         <Alert severity="warning">
           Llegaste al máximo de {MAX_PUNTOS} puntos. Quitá puntos guía que no hagan falta: en una
@@ -359,9 +517,31 @@ export const PanelTrazo = ({
             <ListItem
               key={f.clave}
               disableGutters
-              sx={{ gap: 1, pr: soloGuias ? 5 : 10 }}
+              sx={{ gap: 1, pr: soloGuias ? 5 : 19 }}
               secondaryAction={
                 <Stack direction="row">
+                  <Tooltip title="Subir un lugar">
+                    <span>
+                      <IconButton
+                        size="small"
+                        disabled={f.indice === 0}
+                        onClick={() => mover(f.indice, -1)}
+                      >
+                        <ArrowUpwardIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  <Tooltip title="Bajar un lugar">
+                    <span>
+                      <IconButton
+                        size="small"
+                        disabled={f.indice === puntos.length - 1}
+                        onClick={() => mover(f.indice, 1)}
+                      >
+                        <ArrowDownwardIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
                   <Tooltip title="Convertir en punto guía">
                     <IconButton size="small" onClick={() => cambiarTipo(f.parada.id)}>
                       <SwapHorizIcon fontSize="small" />
@@ -397,32 +577,60 @@ export const PanelTrazo = ({
             <ListItem
               key={f.clave}
               disableGutters
-              sx={{ gap: 1, pr: 5, minHeight: 36 }}
+              sx={{ gap: 1, pr: f.guias.length === 1 && !soloGuias ? 19 : 5, minHeight: 36 }}
               secondaryAction={
-                <Tooltip title={f.guias.length === 1 ? 'Quitar' : 'Quitar estos puntos guía'}>
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      const quitar = new Set(f.guias.map((g) => g.id));
-                      onCambiar(puntos.filter((x) => !quitar.has(x.id)));
-                    }}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                <Stack direction="row">
+                  {f.guias.length === 1 && !soloGuias && (
+                    <>
+                      <Tooltip title="Subir un lugar">
+                        <span>
+                          <IconButton
+                            size="small"
+                            disabled={f.indice === 0}
+                            onClick={() => mover(f.indice, -1)}
+                          >
+                            <ArrowUpwardIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Bajar un lugar">
+                        <span>
+                          <IconButton
+                            size="small"
+                            disabled={f.indice === puntos.length - 1}
+                            onClick={() => mover(f.indice, 1)}
+                          >
+                            <ArrowDownwardIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Convertir en parada">
+                        <IconButton size="small" onClick={() => cambiarTipo(f.guias[0].id)}>
+                          <SwapHorizIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </>
+                  )}
+                  <Tooltip title={f.guias.length === 1 ? 'Quitar' : 'Quitar estos puntos guía'}>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        const quitar = new Set(f.guias.map((g) => g.id));
+                        onCambiar(puntos.filter((x) => !quitar.has(x.id)));
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
               }
             >
               <Numero guia />
               <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1 }}>
-                {f.guias.length === 1 ? 'Punto guía' : `${f.guias.length} puntos guía`}
+                {f.guias.length === 1
+                  ? 'Punto guía · se pasa, no se para'
+                  : `${f.guias.length} puntos guía`}
               </Typography>
-              {!soloGuias && f.guias.length === 1 && (
-                <Tooltip title="Convertir en parada">
-                  <IconButton size="small" onClick={() => cambiarTipo(f.guias[0].id)}>
-                    <SwapHorizIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              )}
             </ListItem>
           ),
         )}

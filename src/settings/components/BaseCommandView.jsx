@@ -27,6 +27,19 @@ const BaseCommandView = ({
   const [attributes, setAttributes] = useState([]);
   const [options, setOptions] = useState([]);
 
+  // Un vehículo simulado (una demo) manda posiciones por OsmAnd, que en Traccar no recibe
+  // comandos: `/commands/types` devuelve vacío y la lista quedaba en «No options». Se le agregan
+  // los dos del corte de corriente, que es lo que la demo tiene que poder mostrar; al enviarlos,
+  // CommandDevicePage los manda al simulador en vez de a un GPS que no existe.
+  const esDemo = useSelector((state) => state.devices.items[deviceId]?.attributes?.demo === true);
+  const comandosDeDemo = esDemo
+    ? ['engineStop', 'engineResume'].map((type) => ({
+        type,
+        optionType: 'type',
+        key: `type-${type}`,
+      }))
+    : [];
+
   useEffectAsync(async () => {
     if (includeSaved) {
       const savedResponse = await fetchOrThrow(`/api/commands/send?deviceId=${deviceId}`);
@@ -41,13 +54,16 @@ const BaseCommandView = ({
           types.map((it) => ({ ...it, optionType: 'type', key: `type-${it.type}` })),
         );
       }
-      setOptions(combined);
+      setOptions([...combined, ...comandosDeDemo]);
     } else {
       const typesResponse = await fetchOrThrow('/api/commands/types');
       const types = await typesResponse.json();
-      setOptions(types.map((it) => ({ ...it, optionType: 'type', key: `type-${it.type}` })));
+      setOptions([
+        ...types.map((it) => ({ ...it, optionType: 'type', key: `type-${it.type}` })),
+        ...comandosDeDemo,
+      ]);
     }
-  }, [deviceId, includeSaved, limitCommands]);
+  }, [deviceId, includeSaved, limitCommands, esDemo]);
 
   useEffect(() => {
     if (item && item.type) {

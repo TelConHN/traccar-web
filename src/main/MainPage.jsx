@@ -5,6 +5,9 @@ import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useDispatch, useSelector } from 'react-redux';
 import DeviceList from './DeviceList';
+import TourGuiado, { useTour } from '../servicios/TourGuiado';
+import BotonIntroduccion from '../servicios/BotonIntroduccion';
+import { pasosMapa } from '../servicios/pasosTour';
 import BottomMenu from '../common/components/BottomMenu';
 import StatusCard from '../common/components/StatusCard';
 import { devicesActions } from '../store';
@@ -73,6 +76,15 @@ const MainPage = () => {
   const mapOnSelect = useAttributePreference('mapOnSelect', true);
 
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
+  // Para la introducción: qué tiene esta cuenta, para no explicarle lo que no va a encontrar.
+  const vehiculos = useSelector((state) => Object.values(state.devices.items));
+  const esDemo = vehiculos.some((d) => d.attributes?.demo === true);
+  const posiciones = useSelector((state) => Object.values(state.session.positions));
+  const posicionesConSensor = {
+    fuel: posiciones.some((p) => p?.attributes?.fuel !== undefined),
+    temp1: posiciones.some((p) => p?.attributes?.temp1 !== undefined),
+  };
+  const tour = useTour('mapa', vehiculos.length > 0);
   const positions = useSelector((state) => state.session.positions);
   const [filteredPositions, setFilteredPositions] = useState([]);
   const selectedPosition = filteredPositions.find(
@@ -119,7 +131,7 @@ const MainPage = () => {
           onEventsClick={onEventsClick}
         />
       )}
-      <div className={classes.sidebar}>
+      <div className={classes.sidebar} data-tour="lista-vehiculos">
         <Paper square elevation={3} className={classes.header}>
           <MainToolbar
             filteredDevices={filteredDevices}
@@ -159,6 +171,22 @@ const MainPage = () => {
           </div>
         )}
       </div>
+      {/* La primera vez que alguien entra, la introducción se abre sola: antes caía en un mapa
+          con puntos y nadie le decía qué era cada cosa. Después queda en «Ver introducción». */}
+      <BotonIntroduccion onAbrir={tour.abrir} />
+      <TourGuiado
+        abierto={tour.abierto}
+        onCerrar={tour.cerrar}
+        pasos={pasosMapa({
+          demo: Boolean(esDemo),
+          conRutas: vehiculos.some((d) => d.attributes?.rutas === true),
+          conTransporte: vehiculos.some((d) => d.attributes?.transporte === true),
+          sensores: [
+            posicionesConSensor.fuel ? 'combustible' : null,
+            posicionesConSensor.temp1 ? 'temperatura' : null,
+          ].filter(Boolean),
+        })}
+      />
       <EventsDrawer open={eventsOpen} onClose={() => setEventsOpen(false)} />
       {selectedDeviceId && (
         <StatusCard

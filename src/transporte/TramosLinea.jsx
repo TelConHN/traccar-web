@@ -30,6 +30,7 @@ const TramosLinea = ({
   onTramoUsado,
   onCapas,
   onCambioLinea,
+  conLimitador = false,
 }) => {
   const [tramos, setTramos] = useState([]);
   const [propuestas, setPropuestas] = useState([]);
@@ -158,6 +159,67 @@ const TramosLinea = ({
           ))}
         </TextField>
       )}
+      {/* Entre parada y parada: es como lo piensa quien arma el recorrido —«del colegio al
+          semáforo, 40»— y no hay que acertarle a dos puntos sobre la línea. El servidor lo
+          convierte a metros con las paradas. */}
+      {puedeEditar && variante.paradas?.length > 1 && (
+        <Stack spacing={1}>
+          <Typography variant="body2" fontWeight={600}>
+            Entre paradas
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {conLimitador
+              ? 'Estos límites avisan cuando el bus se pasa. El limitador que lleva el vehículo es un solo número para todo el recorrido: se carga en Ajustes → Límite de velocidad.'
+              : 'Estos límites avisan cuando el bus se pasa. Para que además el vehículo no pueda pasar de esa velocidad hace falta el limitador, que es un aparato que se instala: escribinos y te lo cotizamos.'}
+          </Typography>
+          {variante.paradas.slice(0, -1).map((p, i) => {
+            const siguiente = variante.paradas[i + 1];
+            const puesto = tramos.find(
+              (t) => t.desdeParada === p.orden && t.hastaParada === siguiente.orden,
+            );
+            return (
+              <Stack key={p.id ?? p.orden} direction="row" spacing={1} alignItems="center">
+                <Typography variant="body2" sx={{ flexGrow: 1, minWidth: 0 }} noWrap>
+                  {p.nombre} → {siguiente.nombre}
+                </Typography>
+                <TextField
+                  select
+                  size="small"
+                  sx={{ width: 120 }}
+                  value={puesto?.limiteKmh ?? ''}
+                  onChange={(e) => {
+                    const valor = e.target.value === '' ? null : Number(e.target.value);
+                    setTramos((ts) => {
+                      const otros = ts.filter(
+                        (t) => !(t.desdeParada === p.orden && t.hastaParada === siguiente.orden),
+                      );
+                      return valor == null
+                        ? otros
+                        : [
+                            ...otros,
+                            {
+                              desdeParada: p.orden,
+                              hastaParada: siguiente.orden,
+                              limiteKmh: valor,
+                            },
+                          ];
+                    });
+                    setSucio(true);
+                  }}
+                >
+                  <MenuItem value="">Sin límite</MenuItem>
+                  {LIMITES.map((l) => (
+                    <MenuItem key={l} value={l}>
+                      {l} km/h
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Stack>
+            );
+          })}
+        </Stack>
+      )}
+
       {tramos.length === 0 && (
         <Typography variant="body2" color="text.secondary">
           Sin tramos.{' '}
@@ -171,7 +233,11 @@ const TramosLinea = ({
             sx={{ bgcolor: colorDeLimite(t.limiteKmh), color: '#fff', minWidth: 58 }}
             label={`${t.limiteKmh}`}
           />
-          {t.desdeMetro != null ? (
+          {t.desdeParada != null ? (
+            <Typography variant="body2" sx={{ flexGrow: 1 }}>
+              Entre la parada {t.desdeParada} y la {t.hastaParada}
+            </Typography>
+          ) : t.desdeMetro != null ? (
             <Typography variant="body2" sx={{ flexGrow: 1 }}>
               km {km(t.desdeMetro)} → {km(t.hastaMetro)}
             </Typography>

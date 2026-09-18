@@ -46,6 +46,7 @@ import { useEffectAsync } from '../reactHelper';
 import LineaEnMapa from './LineaEnMapa';
 import TramosLinea from './TramosLinea';
 import transporteApi from './api';
+import { prepararLinea, recortar, colorDeLimite } from './geo';
 import { PanelTrazo, PuntosEnMapa, puntosDesdeTrazo, usePuntos, useTrazado } from './EditorTrazo';
 
 const useStyles = makeStyles()((theme) => ({
@@ -71,7 +72,16 @@ const useStyles = makeStyles()((theme) => ({
 
 const km = (m) => `${(m / 1000).toFixed(1)} km`;
 
-const LineaDetalle = ({ lineaId, puedeEditar, operacion }) => {
+/// Metros entre dos coordenadas, plano: alcanza de sobra para comparar el principio y el final.
+const metrosEntre = ([la1, lo1], [la2, lo2]) =>
+  Math.hypot((lo2 - lo1) * 111320 * Math.cos((la1 * Math.PI) / 180), (la2 - la1) * 110540);
+
+/// Un recorrido que termina donde empezó. Misma regla que el servidor usa para el enlace público
+/// (routes/seguir.js): sin esto, en la pantalla no había forma de saber si el bus vuelve al mismo
+/// punto o termina en el otro extremo, que es lo primero que se pregunta al mirar un recorrido.
+const esCircuito = (g) => g?.length > 2 && metrosEntre(g[0], g[g.length - 1]) < 150;
+
+const LineaDetalle = ({ lineaId, puedeEditar, operacion, limitador = false }) => {
   const { classes } = useStyles();
   const navigate = useNavigate();
   const [linea, setLinea] = useState(null);
@@ -83,6 +93,10 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion }) => {
   const [inicioTramo, setInicioTramo] = useState(null);
   const [tramoNuevo, setTramoNuevo] = useState(null);
   const [capas, setCapas] = useState([]);
+  // Los tramos con límite de la variante que se está mirando. Se dibujan siempre: antes solo
+  // aparecían mientras se editaban, así que al abrir un recorrido no había forma de ver en qué
+  // pedazo rige el 60 —y es lo primero que se pregunta cuando salta una alerta de velocidad—.
+  const [tramos, setTramos] = useState([]);
   const [nuevaParada, setNuevaParada] = useState(null); // { latitud, longitud, nombre }
   const [editando, setEditando] = useState(null); // parada en edición
   const [editandoNombre, setEditandoNombre] = useState(false);
@@ -104,6 +118,29 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion }) => {
   useEffectAsync(cargar, [lineaId]);
 
   const activa = linea?.variantes[varianteActiva];
+
+  useEffectAsync(async () => {
+    if (!linea || !activa) return;
+    try {
+      setTramos(await transporteApi.tramos(linea.id, activa.id));
+    } catch {
+      setTramos([]);
+    }
+  }, [linea?.id, activa?.id]);
+
+  /// Los tramos como capas del mapa, con su color y el límite escrito encima. Mientras se editan
+  /// los pone TramosLinea (en `capas`), así que acá no se repiten.
+  const capasDeTramos =
+    activa && !corrigiendo && capas.length === 0
+      ? tramos
+          .filter((t) => t.desdeMetro != null)
+          .map((t) => ({
+            clave: `lim-${t.id ?? t.desdeMetro}`,
+            coordenadas: recortar(prepararLinea(activa.geometria), t.desdeMetro, t.hastaMetro),
+            color: colorDeLimite(t.limiteKmh),
+            etiqueta: `${t.limiteKmh} km/h${t.nombre ? ` · ${t.nombre}` : ''}`,
+          }))
+      : [];
   const trazado = useTrazado(dibujo.puntos, corrigiendo);
 
   const empezarCorreccion = () => {
@@ -276,6 +313,15 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion }) => {
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                   <Chip size="small" label={km(activa.metros)} />
                   <Chip size="small" label={`${activa.paradas.length} paradas`} />
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={
+                      esCircuito(activa.geometria)
+                        ? `Circuito · sale y vuelve a ${activa.paradas[0]?.nombre ?? 'la terminal'}`
+                        : `Sale de ${activa.paradas[0]?.nombre ?? '—'} y termina en ${activa.paradas.at(-1)?.nombre ?? '—'}`
+                    }
+                  />
                   <Chip
                     size="small"
                     variant="outlined"
@@ -468,6 +514,7 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion }) => {
                 linea={linea}
                 variante={activa}
                 puedeEditar={puedeEditar}
+                conLimitador={limitador}
                 tramoNuevo={tramoNuevo}
                 onTramoUsado={() => setTramoNuevo(null)}
                 onCapas={setCapas}
@@ -519,12 +566,13 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion }) => {
               />
             </>
           )}
-          {capas.map((c) => (
+          {[...capas, ...capasDeTramos].map((c) => (
             <LineaEnMapa
               key={c.clave}
               coordenadas={c.coordenadas}
               paradas={[]}
               color={c.color}
+              etiqueta={c.etiqueta}
               resaltada
             />
           ))}

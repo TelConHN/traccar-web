@@ -66,7 +66,7 @@ const ICONO_OPERACION = {
 
 /// La única pregunta antes de empezar. Se elige una tarjeta y se confirma con un botón: tocar una
 /// tarjeta por error no puede cambiarle las pantallas a toda la cuenta.
-const EleccionOperacion = ({ actual, onGuardada, esCambio }) => {
+const EleccionOperacion = ({ actual, onGuardada, esCambio, demo }) => {
   const [elegida, setElegida] = useState(actual);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
@@ -75,8 +75,8 @@ const EleccionOperacion = ({ actual, onGuardada, esCambio }) => {
     setGuardando(true);
     setError('');
     try {
-      const { operacion } = await transporteApi.configurar(elegida);
-      onGuardada(operacion);
+      const { operacion, resembrada } = await transporteApi.configurar(elegida);
+      onGuardada(operacion, resembrada);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -90,9 +90,14 @@ const EleccionOperacion = ({ actual, onGuardada, esCambio }) => {
         {esCambio ? 'Tipo de transporte' : '¿Qué transporte manejás?'}
       </Typography>
       <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2.5 }}>
-        {esCambio
-          ? 'Cambiarlo cambia las palabras y las secciones para toda la cuenta. Tus recorridos y horarios no se tocan.'
-          : 'Así te mostramos las palabras y los pasos que te sirven. Lo podés cambiar después en Configuración.'}
+        {/* En una demo el tipo decide lo que se ve —el recorrido, los pasajeros, el nombre de los
+            buses—, así que cambiarlo la vuelve a armar. En una cuenta de verdad no se toca nada
+            de lo que el cliente cargó: solo cambian las palabras y las secciones. */}
+        {!esCambio
+          ? 'Así te mostramos las palabras y los pasos que te sirven. Lo podés cambiar después en Configuración.'
+          : demo
+            ? 'Esta es una demo: al cambiarlo se vuelve a armar con ese tipo de transporte — el recorrido, los pasajeros de ejemplo y el nombre de los buses. Tarda unos segundos.'
+            : 'Cambiarlo cambia las palabras y las secciones para toda la cuenta. Tus recorridos y horarios no se tocan.'}
       </Typography>
 
       <Box
@@ -156,7 +161,11 @@ const EleccionOperacion = ({ actual, onGuardada, esCambio }) => {
           disabled={!elegida || elegida === actual || guardando}
           onClick={guardar}
         >
-          {esCambio ? 'Guardar cambio' : 'Continuar'}
+          {guardando && demo && esCambio
+            ? 'Armando la demo…'
+            : esCambio
+              ? 'Guardar cambio'
+              : 'Continuar'}
         </Button>
         {!elegida && (
           <Typography variant="body2" color="text.secondary">
@@ -284,6 +293,10 @@ const TransportePage = () => {
   const [perfil, setPerfil] = useState(null);
   const [error, setError] = useState('');
 
+  // `recarga` fuerza volver a pedir el perfil sin cambiar de cliente: después de rearmar una demo
+  // cambian hasta los nombres de los buses, y lo que quedó en pantalla ya no es lo que hay.
+  const [recarga, setRecarga] = useState(0);
+
   useEffectAsync(async () => {
     setPerfil(null);
     setError('');
@@ -292,7 +305,7 @@ const TransportePage = () => {
     } catch (e) {
       setError(e.message);
     }
-  }, [clienteId]);
+  }, [clienteId, recarga]);
 
   const operacion = perfil?.operacion ?? null;
   const pedida = seccionDe(pathname);
@@ -313,7 +326,10 @@ const TransportePage = () => {
     }
   }, [perfil, operacion, pedida, navigate, sinServicio, requiereCliente]);
 
-  const guardada = (nueva) => setPerfil((p) => ({ ...p, operacion: nueva }));
+  const guardada = (nueva, resembrada) => {
+    if (resembrada) setRecarga((n) => n + 1);
+    else setPerfil((p) => ({ ...p, operacion: nueva }));
+  };
 
   // Introducción guiada: sola la primera vez que la persona entra con el tipo de transporte ya
   // elegido (antes solo hay una pregunta, no hay nada que recorrer).
@@ -332,13 +348,13 @@ const TransportePage = () => {
     );
   } else if (perfil && !sinServicio) {
     if (!operacion) {
-      contenido = perfil.configura ? (
+      contenido = admin ? (
         // Con clave por cliente: cambiar de cliente no arrastra la tarjeta marcada del anterior.
         <EleccionOperacion key={clienteId ?? 'propia'} actual={null} onGuardada={guardada} />
       ) : (
         <Alert severity="info" sx={{ m: 2 }}>
-          Tu cuenta todavía no terminó de configurar Transporte. Cuando lo haga, acá vas a ver tus
-          recorridos.
+          TelConHN está terminando de configurar tu servicio de Transporte. En cuanto quede listo,
+          acá vas a ver tus recorridos.
         </Alert>
       );
     } else if (viajeId) {
@@ -369,12 +385,20 @@ const TransportePage = () => {
     } else if (pedida.clave === 'configuracion' && perfil.configura) {
       contenido = (
         <>
-          <EleccionOperacion
-            key={`${clienteId ?? 'propia'}-${operacion}`}
-            actual={operacion}
-            onGuardada={guardada}
-            esCambio
-          />
+          {admin ? (
+            <EleccionOperacion
+              key={`${clienteId ?? 'propia'}-${operacion}`}
+              actual={operacion}
+              onGuardada={guardada}
+              esCambio
+              demo={perfil.demo}
+            />
+          ) : (
+            <Alert severity="info" sx={{ m: 2 }}>
+              Tu servicio es <strong>{OPERACIONES[operacion]?.nombre}</strong>. Lo configura
+              TelConHN: si tu operación cambió, escribinos y lo ajustamos.
+            </Alert>
+          )}
           {operacion !== 'linea' && (
             <Abordaje
               activo={perfil.marcaAbordaje}
@@ -401,6 +425,7 @@ const TransportePage = () => {
             lineaId={subruta}
             puedeEditar={puedeEditar}
             operacion={operacion}
+            limitador={perfil.limitador === true}
           />
         );
       } else {

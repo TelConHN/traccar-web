@@ -32,7 +32,13 @@ const SettingsMenu = () => {
   const userId = useSelector((state) => state.session.user.id);
   const supportLink = useSelector((state) => state.session.server.attributes.support);
   const billingLink = useSelector((state) => state.session.user.attributes.billingLink);
-  const speedLimitEnabled = useSelector((state) => !!state.session.user.attributes?.speedLimitEnabled);
+  const speedLimitEnabled = useSelector(
+    (state) => !!state.session.user.attributes?.speedLimitEnabled,
+  );
+  // Mandar un anuncio a todos los usuarios de la cuenta no es parte del servicio: lo habilita
+  // TelConHN a la cuenta principal que lo pida (`anunciosEnabled`). Antes lo veía cualquier cuenta
+  // con sub-usuarios —o sea todos los clientes—, y un encargado o un conductor no lo ve nunca.
+  const anunciosEnabled = useSelector((state) => !!state.session.user.attributes?.anunciosEnabled);
 
   const features = useFeatures();
 
@@ -140,12 +146,14 @@ const SettingsMenu = () => {
         <>
           <Divider />
           <List>
-            <MenuItem
-              title={t('serverAnnouncement')}
-              link="/settings/announcement"
-              icon={<CampaignIcon />}
-              selected={location.pathname === '/settings/announcement'}
-            />
+            {(admin || anunciosEnabled) && (
+              <MenuItem
+                title={t('serverAnnouncement')}
+                link="/settings/announcement"
+                icon={<CampaignIcon />}
+                selected={location.pathname === '/settings/announcement'}
+              />
+            )}
             {admin && (
               <MenuItem
                 title={t('settingsServer')}

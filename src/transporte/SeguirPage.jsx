@@ -114,36 +114,64 @@ function imagenFlecha() {
   return g.getImageData(0, 0, lado, lado);
 }
 
-const elementoParada = ({ orden, mia, terminal }) => {
+const elementoParada = ({ orden, mia, terminal, etiqueta }) => {
   const el = document.createElement('div');
+  // Sin `position`: la hoja de estilos de maplibre le da `position:absolute` a cada marcador y así
+  // queda pegado a su coordenada. Con `position:relative` vuelve al flujo del documento —se estira
+  // al ancho del mapa y empuja hacia abajo a los marcadores que siguen—, y por eso un bus aparecía
+  // «fuera de la carretera» mientras otro caía bien.
+  el.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer;';
   const tam = mia ? 34 : 24;
-  el.style.cssText =
+  const circulo = document.createElement('div');
+  circulo.style.cssText =
     `width:${tam}px;height:${tam}px;border-radius:50%;display:flex;align-items:center;justify-content:center;` +
-    `font:700 ${mia ? 14 : 12}px Roboto,Arial;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer;` +
+    `font:700 ${mia ? 14 : 12}px Roboto,Arial;box-shadow:0 1px 4px rgba(0,0,0,.35);` +
     (mia
       ? `background:${AMARILLO};color:${OSCURO};border:3px solid ${OSCURO};`
       : terminal
         ? `background:${OSCURO};color:#fff;border:2px solid #fff;`
         : `background:#fff;color:${AZUL_LINEA};border:3px solid ${AZUL_LINEA};`);
-  el.textContent = mia ? '★' : String(orden ?? '');
+  circulo.textContent = mia ? '★' : String(orden ?? '');
+  el.appendChild(circulo);
+  // «Salida y regreso» escrito en el mapa: dónde arranca el bus y si vuelve al mismo punto es de
+  // las primeras cosas que se preguntan, y un círculo oscuro sin texto no lo contesta.
+  if (etiqueta) {
+    const texto = document.createElement('div');
+    // Fuera del flujo: si contara para el alto, el círculo dejaría de caer sobre la coordenada.
+    texto.style.cssText = `position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:2px;white-space:nowrap;background:${OSCURO};color:#fff;font:600 10px Roboto,Arial;padding:1px 5px;border-radius:7px;`;
+    texto.textContent = etiqueta;
+    el.appendChild(texto);
+  }
   return el;
 };
 
+/**
+ * El bus en el mapa, con forma de alfiler: el ícono va ARRIBA y la punta toca el lugar exacto.
+ *
+ * Antes era un círculo de 46 px centrado en la posición, y a la vista de una ciudad ese círculo
+ * tapaba la calle por la que iba el bus: parecía que andaba por fuera de la carretera. Medido con
+ * el motor de ruteo, cada posición cae a menos de 10 cm de una calle real; lo que fallaba era el
+ * dibujo. La punta y el puntito oscuro dejan ver la calle debajo.
+ *
+ * El alfiler mide 56 px de alto y se ancla abajo (`anchor: 'bottom'` al crear el marcador).
+ */
 const elementoBus = (etiqueta) => {
   const el = document.createElement('div');
-  el.style.cssText = 'position:relative;width:46px;height:46px;cursor:pointer;';
+  el.style.cssText = 'width:44px;height:56px;cursor:pointer;';
   el.innerHTML = `
-    <div data-rumbo style="position:absolute;inset:0;transition:transform .8s ease;">
-      <div style="position:absolute;left:50%;top:-7px;margin-left:-7px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:10px solid ${OSCURO};"></div>
+    <div data-rumbo style="position:absolute;left:0;top:0;width:44px;height:44px;transition:transform .8s ease;">
+      <div style="position:absolute;left:50%;top:-6px;margin-left:-6px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:9px solid ${OSCURO};"></div>
     </div>
-    <div style="position:absolute;inset:4px;border-radius:50%;background:${AMARILLO};border:3px solid ${OSCURO};box-shadow:0 2px 8px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="${OSCURO}"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17m9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5m1.5-6H6V6h12z"/></svg>
+    <div style="position:absolute;left:5px;top:5px;width:34px;height:34px;border-radius:50%;background:${AMARILLO};border:3px solid ${OSCURO};box-shadow:0 2px 8px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="${OSCURO}"><path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17m9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5m1.5-6H6V6h12z"/></svg>
     </div>
+    <div style="position:absolute;left:50%;top:38px;margin-left:-1.5px;width:3px;height:12px;background:${OSCURO};"></div>
+    <div style="position:absolute;left:50%;bottom:-3px;margin-left:-3px;width:6px;height:6px;border-radius:50%;background:${OSCURO};border:1.5px solid #fff;"></div>
 `;
   // La etiqueta sale de nombres que escribe el cliente: va como texto, nunca como HTML.
   if (etiqueta) {
     const texto = document.createElement('div');
-    texto.style.cssText = `position:absolute;top:44px;left:50%;transform:translateX(-50%);white-space:nowrap;background:${OSCURO};color:#fff;font:600 11px Roboto,Arial;padding:1px 6px;border-radius:8px;`;
+    texto.style.cssText = `position:absolute;left:50%;top:-20px;transform:translateX(-50%);white-space:nowrap;background:${OSCURO};color:#fff;font:600 11px Roboto,Arial;padding:1px 6px;border-radius:8px;`;
     texto.textContent = etiqueta;
     el.appendChild(texto);
   }
@@ -151,12 +179,28 @@ const elementoBus = (etiqueta) => {
 };
 
 /// Todo lo que va en el mapa, sacado de la respuesta según la clase de enlace.
+///
+/// Cada recorrido lleva la MISMA clave que el bus que lo hace: con dos o tres buses de recorridos
+/// distintos encima del mismo mapa, todos los trazos se veían iguales y no había forma de saber
+/// cuál era de cuál. Con la clave, tocar un bus deja su recorrido entero y apaga los demás.
 function capasDe(datos) {
   if (!datos) return { lineas: [], paradas: [], buses: [] };
   if (datos.clase === 'recorrido') {
     return {
-      lineas: [datos.linea],
-      paradas: datos.paradas.map((p, i) => ({ ...p, terminal: i === 0 })),
+      // Un solo recorrido y todos los buses encima: no hay cuál es de cuál que aclarar.
+      lineas: [{ clave: null, coordenadas: datos.linea }],
+      paradas: datos.paradas.map((p, i) => ({
+        ...p,
+        terminal: i === 0,
+        etiqueta:
+          i === 0
+            ? datos.circular
+              ? 'Salida y regreso'
+              : 'Salida'
+            : !datos.circular && i === datos.paradas.length - 1
+              ? 'Última parada'
+              : null,
+      })),
       buses: datos.buses
         .filter((b) => b.posicion)
         .map((b) => ({
@@ -168,24 +212,71 @@ function capasDe(datos) {
   }
   if (datos.clase === 'grupo') {
     return {
-      lineas: [...new Set(datos.buses.map((b) => b.linea).filter(Boolean))],
+      lineas: datos.buses
+        .map((b, i) => ({ clave: `g${i}`, coordenadas: b.linea }))
+        .filter((l) => l.coordenadas?.length > 1),
       paradas: datos.buses
         .flatMap((b) => b.paradas)
         .filter((p, i, arr) => arr.findIndex((x) => x.lat === p.lat && x.lon === p.lon) === i),
       buses: datos.buses
-        .filter((b) => b.posicion)
-        .map((b, i) => ({ clave: `g${i}`, etiqueta: b.recorrido.split(' · ')[0], ...b.posicion })),
+        .map((b, i) =>
+          b.posicion
+            ? { clave: `g${i}`, etiqueta: b.recorrido.split(' · ')[0], ...b.posicion }
+            : null,
+        )
+        .filter(Boolean),
     };
   }
   const viajes = datos.pasajeros.flatMap((p) => p.viajes);
   return {
-    lineas: viajes.map((v) => v.linea).filter(Boolean),
+    lineas: viajes
+      .map((v, i) => ({ clave: `p${i}`, coordenadas: v.linea }))
+      .filter((l) => l.coordenadas?.length > 1),
     paradas: viajes.map((v) => ({ ...v.parada, mia: true })),
     buses: viajes
-      .filter((v) => v.posicion)
-      .map((v, i) => ({ clave: `p${i}`, etiqueta: '', ...v.posicion })),
+      .map((v, i) => (v.posicion ? { clave: `p${i}`, etiqueta: '', ...v.posicion } : null))
+      .filter(Boolean),
   };
 }
+
+/// Lo que le falta al bus: su recorrido desde donde va hasta el final de la vuelta.
+///
+/// Es lo que contesta «¿por dónde viene el mío?» cuando dos buses hacen el MISMO recorrido —el
+/// caso normal de una escuela—: ahí no hay dos trazos que separar, y apagar el único que hay no
+/// dice nada. Con esto, elegir un bus dibuja su tramo pendiente y deja el resto tenue.
+///
+/// La proyección es plana (metros por grado a esta latitud): sobre una ciudad el error es de
+/// centímetros y evita traer una librería de geometría a una página pública que tiene que abrir
+/// rápido en un teléfono.
+function loQueLeFalta(coordenadas, bus) {
+  if (!coordenadas || coordenadas.length < 2 || !bus) return [];
+  const kx = 111320 * Math.cos((bus.lat * Math.PI) / 180);
+  const ky = 110540;
+  let mejor = { distancia: Infinity, indice: 0, punto: coordenadas[0] };
+  for (let i = 1; i < coordenadas.length; i += 1) {
+    const [la1, lo1] = coordenadas[i - 1];
+    const [la2, lo2] = coordenadas[i];
+    const dx = (lo2 - lo1) * kx;
+    const dy = (la2 - la1) * ky;
+    const largo = dx * dx + dy * dy;
+    const t =
+      largo === 0
+        ? 0
+        : Math.max(0, Math.min(1, ((bus.lon - lo1) * kx * dx + (bus.lat - la1) * ky * dy) / largo));
+    const punto = [la1 + (la2 - la1) * t, lo1 + (lo2 - lo1) * t];
+    const ex = (bus.lon - punto[1]) * kx;
+    const ey = (bus.lat - punto[0]) * ky;
+    const distancia = ex * ex + ey * ey;
+    if (distancia < mejor.distancia) mejor = { distancia, indice: i, punto };
+  }
+  // Más de 300 m fuera del recorrido: va desviado y marcarle un tramo sería inventarlo.
+  if (Math.sqrt(mejor.distancia) > 300) return [];
+  return [mejor.punto, ...coordenadas.slice(mejor.indice)];
+}
+
+/// Con un bus elegido: lo suyo con `activo`, lo demás con `apagado`. Sin elegir, todo igual.
+const segunElegido = (elegido, activo, apagado) =>
+  elegido == null ? activo : ['case', ['==', ['get', 'clave'], elegido], activo, apagado];
 
 // ── Panel ───────────────────────────────────────────────────────────────────
 
@@ -304,12 +395,13 @@ const PanelPersonal = ({ datos, tipo, onVer }) => (
   </Stack>
 );
 
-const PanelGrupo = ({ datos, onVer }) => (
+const PanelGrupo = ({ datos, onVer, elegido, onElegir }) => (
   <Stack spacing={1.5}>
     {datos.buses.length === 0 && (
       <Alert severity="info">Hoy no hay buses programados para este grupo.</Alert>
     )}
-    {datos.buses.map((b) => {
+    {datos.buses.map((b, i) => {
+      const clave = `g${i}`;
       const estado = b.terminado
         ? 'Terminó'
         : b.porSalir
@@ -327,7 +419,19 @@ const PanelGrupo = ({ datos, onVer }) => (
         <Paper
           key={`${b.recorrido}-${b.horario}`}
           variant="outlined"
-          sx={{ p: 1.5, borderRadius: 3 }}
+          onClick={() => {
+            onElegir(clave);
+            if (b.posicion) onVer(b.posicion, false);
+          }}
+          sx={{
+            p: 1.5,
+            borderRadius: 3,
+            cursor: 'pointer',
+            // El elegido se marca acá también: el mapa y la lista dicen lo mismo.
+            borderColor: elegido === clave ? OSCURO : undefined,
+            borderWidth: elegido === clave ? 2 : 1,
+            opacity: elegido && elegido !== clave ? 0.55 : 1,
+          }}
         >
           <Stack direction="row" alignItems="center" spacing={1}>
             <DirectionsBusIcon sx={{ color: OSCURO }} />
@@ -362,7 +466,11 @@ const PanelGrupo = ({ datos, onVer }) => (
               size="small"
               startIcon={<MyLocationIcon />}
               sx={{ mt: 0.5 }}
-              onClick={() => onVer(b.posicion)}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onElegir(clave);
+                onVer(b.posicion, false);
+              }}
             >
               Ver en el mapa
             </Button>
@@ -373,7 +481,7 @@ const PanelGrupo = ({ datos, onVer }) => (
   </Stack>
 );
 
-const PanelRecorrido = ({ datos, onVer }) => (
+const PanelRecorrido = ({ datos, onVer, elegido, onElegir }) => (
   <Stack spacing={2}>
     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
       <Chip
@@ -399,13 +507,43 @@ const PanelRecorrido = ({ datos, onVer }) => (
       </Alert>
     )}
 
+    {/* De dónde sale y dónde termina, en una línea: es lo que decide si alguien puede esperar el
+        bus de vuelta en el mismo lugar. */}
+    <Typography variant="body2" color="text.secondary">
+      {datos.circular ? (
+        <>
+          Sale de <strong>{datos.paradas[0]?.nombre}</strong> y vuelve al mismo punto.
+        </>
+      ) : (
+        <>
+          Sale de <strong>{datos.paradas[0]?.nombre}</strong> y termina en{' '}
+          <strong>{datos.paradas.at(-1)?.nombre}</strong>.
+        </>
+      )}
+      {datos.buses.length > 1 &&
+        ` Los ${datos.buses.length} buses hacen este mismo recorrido: tocá uno para ver por dónde va y lo que le falta.`}
+    </Typography>
+
     {datos.buses.map((b) => (
       <ButtonBase
         key={b.numero}
-        onClick={() => b.posicion && onVer(b.posicion)}
+        onClick={() => {
+          onElegir(`b${b.numero}`);
+          if (b.posicion) onVer(b.posicion, false);
+        }}
         sx={{ borderRadius: 3, textAlign: 'left', display: 'block', width: '100%' }}
       >
-        <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 3, width: '100%' }}>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 1.25,
+            borderRadius: 3,
+            width: '100%',
+            borderColor: elegido === `b${b.numero}` ? OSCURO : undefined,
+            borderWidth: elegido === `b${b.numero}` ? 2 : 1,
+            opacity: elegido && elegido !== `b${b.numero}` ? 0.55 : 1,
+          }}
+        >
           <Stack direction="row" spacing={1} alignItems="center">
             <Box
               sx={{
@@ -518,6 +656,8 @@ const SeguirContenido = () => {
   const [googleKey, setGoogleKey] = useState(null);
   const [listo, setListo] = useState(false);
   const [segundos, setSegundos] = useState(0);
+  // Qué bus está elegido. Solo cambia cómo se ve el mapa: no filtra ni esconde nada.
+  const [elegido, setElegido] = useState(null);
 
   const tipo = TIPO[datos?.operacion] ?? TIPO.linea;
 
@@ -540,6 +680,8 @@ const SeguirContenido = () => {
     });
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     m.on('load', () => setListo(true));
+    // Tocar el mapa fuera de un bus vuelve a mostrarlos todos por igual.
+    m.on('click', () => setElegido(null));
     // El contenedor toma su alto final después de montar (grilla, hoja inferior): sin esto el mapa
     // queda con el tamaño del primer instante y deja una franja vacía.
     const observador = new ResizeObserver(() => m.resize());
@@ -593,6 +735,17 @@ const SeguirContenido = () => {
 
   const capas = useMemo(() => capasDe(datos), [datos]);
 
+  // El tramo que le falta al bus elegido, sobre su propio recorrido.
+  const tramo = useMemo(() => {
+    if (!elegido) return [];
+    const bus = capas.buses.find((b) => b.clave === elegido);
+    if (!bus) return [];
+    const suya =
+      capas.lineas.find((l) => l.clave === bus.clave) ??
+      (capas.lineas.length === 1 ? capas.lineas[0] : null);
+    return loQueLeFalta(suya?.coordenadas, bus);
+  }, [elegido, capas]);
+
   // Trazo con sentido de marcha.
   useEffect(() => {
     const m = mapa.current;
@@ -602,13 +755,20 @@ const SeguirContenido = () => {
       type: 'FeatureCollection',
       features: capas.lineas.map((l) => ({
         type: 'Feature',
-        geometry: { type: 'LineString', coordinates: l.map(([lat, lon]) => [lon, lat]) },
+        properties: { clave: l.clave },
+        geometry: {
+          type: 'LineString',
+          coordinates: l.coordenadas.map(([lat, lon]) => [lon, lat]),
+        },
       })),
     };
     if (m.getSource('recorrido')) {
       m.getSource('recorrido').setData(geo);
     } else {
-      m.addSource('recorrido', { type: 'geojson', data: geo });
+      // `tolerance: 0`: sin esto maplibre simplifica la línea al hacer sus teselas y a la vista
+      // de toda la ciudad se come los tramos cortos —una entrada a un centro comercial, un lazo
+      // para dar la vuelta—. El bus sí va por ahí, así que aparecía «fuera de la carretera».
+      m.addSource('recorrido', { type: 'geojson', tolerance: 0, data: geo });
       m.addLayer({
         id: 'recorrido-borde',
         type: 'line',
@@ -638,6 +798,59 @@ const SeguirContenido = () => {
     }
   }, [capas, listo]);
 
+  // Con un bus elegido: su tramo pendiente en amarillo —el mismo color del bus— encima del
+  // recorrido, y todo lo demás tenue. Sin nadie elegido, el mapa queda como estaba.
+  useEffect(() => {
+    const m = mapa.current;
+    if (!m || !listo || !m.getLayer('recorrido-linea')) return;
+    // Con varios recorridos se apagan los ajenos; con uno solo se apaga por igual, porque lo que
+    // resalta es el tramo del bus, no el recorrido.
+    const uno = capas.lineas.length > 1 ? elegido : null;
+    const hayElegido = Boolean(elegido) && tramo.length > 1;
+    const tenue = (activo, apagado) =>
+      hayElegido && !uno ? apagado : segunElegido(uno, activo, apagado);
+    m.setPaintProperty('recorrido-linea', 'line-opacity', tenue(1, 0.3));
+    m.setPaintProperty('recorrido-linea', 'line-width', tenue(6.5, 4));
+    m.setPaintProperty('recorrido-borde', 'line-opacity', tenue(1, 0.3));
+    m.setPaintProperty('recorrido-sentido', 'icon-opacity', tenue(1, 0.15));
+
+    const geo = {
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates: tramo.map(([lat, lon]) => [lon, lat]) },
+    };
+    if (m.getSource('tramo')) {
+      m.getSource('tramo').setData(geo);
+    } else {
+      m.addSource('tramo', { type: 'geojson', tolerance: 0, data: geo });
+      m.addLayer({
+        id: 'tramo-borde',
+        type: 'line',
+        source: 'tramo',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': OSCURO, 'line-width': 9 },
+      });
+      m.addLayer({
+        id: 'tramo-linea',
+        type: 'line',
+        source: 'tramo',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': AMARILLO, 'line-width': 5.5 },
+      });
+    }
+  }, [elegido, capas, tramo, listo]);
+
+  // El bus elegido, entero y adelante; los demás, tenues.
+  //
+  // La opacidad va por `setOpacity` y no por el estilo del elemento: maplibre la reescribe en cada
+  // cuadro (tiene su propia opacidad para los marcadores tapados), así que ponerla a mano se
+  // borraba sola y el resaltado no se veía.
+  useEffect(() => {
+    marcadores.current.buses.forEach((marcador, clave) => {
+      marcador.setOpacity(elegido && elegido !== clave ? '0.4' : '1');
+      marcador.getElement().style.zIndex = elegido === clave ? '3' : '1';
+    });
+  }, [elegido, capas]);
+
   // Paradas y buses (los buses se mueven suave de una posición a la siguiente).
   useEffect(() => {
     const m = mapa.current;
@@ -648,7 +861,9 @@ const SeguirContenido = () => {
         .setLngLat([p.lon, p.lat])
         .setPopup(
           new maplibregl.Popup({ offset: 16, closeButton: false }).setText(
-            p.mia ? `Tu parada: ${p.nombre}` : `${p.orden}. ${p.nombre}`,
+            p.mia
+              ? `Tu parada: ${p.nombre}`
+              : `${p.orden}. ${p.nombre}${p.etiqueta ? ` · ${p.etiqueta}` : ''}`,
           ),
         )
         .addTo(m),
@@ -659,7 +874,15 @@ const SeguirContenido = () => {
       vistos.add(b.clave);
       let marcador = marcadores.current.buses.get(b.clave);
       if (!marcador) {
-        marcador = new maplibregl.Marker({ element: elementoBus(b.etiqueta) })
+        const elemento = elementoBus(b.etiqueta);
+        elemento.style.cursor = 'pointer';
+        // Tocarlo de nuevo lo suelta: es un resaltado, no un filtro del que haya que salir.
+        elemento.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          setElegido((actual) => (actual === b.clave ? null : b.clave));
+        });
+        // `bottom`: la punta del alfiler queda sobre la coordenada, no el centro del ícono.
+        marcador = new maplibregl.Marker({ element: elemento, anchor: 'bottom' })
           .setLngLat([b.lon, b.lat])
           .addTo(m);
         marcadores.current.buses.set(b.clave, marcador);
@@ -691,7 +914,7 @@ const SeguirContenido = () => {
 
     // Encuadre una sola vez: después manda quien mira el mapa.
     const puntos = [
-      ...capas.lineas.flat().map(([lat, lon]) => [lon, lat]),
+      ...capas.lineas.flatMap((l) => l.coordenadas).map(([lat, lon]) => [lon, lat]),
       ...capas.paradas.map((p) => [p.lon, p.lat]),
       ...capas.buses.map((b) => [b.lon, b.lat]),
     ];
@@ -705,7 +928,14 @@ const SeguirContenido = () => {
     }
   }, [capas, escritorio]);
 
-  const ver = (p) => mapa.current?.flyTo({ center: [p.lon, p.lat], zoom: 16, duration: 700 });
+  // `acercar` en false centra sin cambiar el zoom: al elegir un bus se quiere ver dónde va SIN
+  // perder de vista el recorrido completo. Para una parada sí se acerca: es un punto.
+  const ver = (p, acercar = true) =>
+    mapa.current?.flyTo({
+      center: [p.lon, p.lat],
+      zoom: acercar ? 16 : mapa.current.getZoom(),
+      duration: 700,
+    });
 
   const encabezado = (
     <Box sx={{ bgcolor: OSCURO, color: '#fff', px: 2, py: 1.5 }}>
@@ -764,8 +994,22 @@ const SeguirContenido = () => {
         </Alert>
       )}
       {datos?.clase === 'personal' && <PanelPersonal datos={datos} tipo={tipo} onVer={ver} />}
-      {datos?.clase === 'grupo' && <PanelGrupo datos={datos} onVer={ver} />}
-      {datos?.clase === 'recorrido' && <PanelRecorrido datos={datos} onVer={ver} />}
+      {datos?.clase === 'grupo' && (
+        <PanelGrupo
+          datos={datos}
+          onVer={ver}
+          elegido={elegido}
+          onElegir={(clave) => setElegido((actual) => (actual === clave ? null : clave))}
+        />
+      )}
+      {datos?.clase === 'recorrido' && (
+        <PanelRecorrido
+          datos={datos}
+          onVer={ver}
+          elegido={elegido}
+          onElegir={(clave) => setElegido((actual) => (actual === clave ? null : clave))}
+        />
+      )}
       {datos && (
         <Typography
           variant="caption"

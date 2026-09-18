@@ -156,3 +156,83 @@ export function pasosRutas({ planifica, gestionaUsuarios, demo }) {
   );
   return pasos;
 }
+
+/**
+ * La introducción de la pantalla principal: qué es cada cosa la primera vez que el cliente entra.
+ *
+ * Es lo primero que ve alguien que nunca usó un GPS —antes caía en un mapa con puntos y nadie le
+ * decía qué significaba nada—, así que explica en el orden en que se usa: dónde están sus
+ * vehículos, qué dice la tarjeta de cada uno, qué hacen los botones y dónde queda el historial.
+ *
+ * `servicios` dice qué tiene contratado esa cuenta para no prometer lo que no va a encontrar.
+ */
+export function pasosMapa({ demo, conRutas, conTransporte, sensores = [] } = {}) {
+  const pasos = [
+    {
+      etiqueta: demo ? 'Demo simulada' : 'Bienvenida',
+      titulo: 'Acá ves tus vehículos en vivo',
+      texto:
+        'Cada vehículo manda su posición cada pocos segundos. En el mapa lo ves moverse, y de cada uno podés mirar por dónde anduvo, sus reportes y sus alertas.',
+      consejo: demo
+        ? 'Esta es una demo: los vehículos se mueven solos y lo que ves es simulado, para que veas cómo funciona con carros de verdad.'
+        : null,
+    },
+    {
+      etiqueta: 'Tus vehículos',
+      titulo: 'La lista de la izquierda',
+      texto:
+        'Todos tus vehículos, con el color de su estado: en línea, sin reportar o detenido. Tocá uno y el mapa te lo muestra; el buscador de arriba sirve cuando son muchos.',
+      objetivo: 'lista-vehiculos',
+    },
+    {
+      etiqueta: 'La tarjeta',
+      titulo: 'Qué dice cada dato',
+      texto: [
+        'Al tocar un vehículo se abre su tarjeta:',
+        '· Hora — cuándo mandó la última posición.',
+        '· Velocidad — a cuánto iba en ese momento.',
+        '· Encendido — si el motor estaba andando.',
+        '· Energía — el voltaje de la batería del carro.',
+        '· Bloqueado — si tiene puesto el corte de corriente.',
+        '· Distancia total — lo que lleva recorrido.',
+        sensores.includes('combustible') ? '· Combustible — el nivel del tanque.' : null,
+        sensores.includes('temperatura') ? '· Temperatura — la del furgón o el contenedor.' : null,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      consejo: 'Tocá «Más detalles» para ver todo lo que manda el equipo.',
+    },
+    {
+      etiqueta: 'Botones',
+      titulo: 'Qué podés hacer con un vehículo',
+      texto:
+        'En la tarjeta: «…» para abrirlo en Google Maps o compartirlo, el icono de recorrido para ver por dónde anduvo, y el de enviar para mandarle un comando al equipo (por ejemplo, bloquear el motor si tenés ese servicio).',
+    },
+    {
+      etiqueta: 'Reportes',
+      titulo: 'El historial y las gráficas',
+      texto:
+        'En Reportes está lo que pasó: viajes, paradas, eventos, un resumen por vehículo y la gráfica, donde se ve cómo cambió la velocidad, el combustible o la temperatura a lo largo del día.',
+      objetivo: 'menu-abajo',
+    },
+  ];
+  if (conRutas || conTransporte) {
+    pasos.push({
+      etiqueta: 'Tus servicios',
+      titulo: conRutas && conTransporte ? 'Rutas y Transporte' : conRutas ? 'Rutas' : 'Transporte',
+      texto: [
+        conRutas
+          ? 'Rutas: armás la jornada de reparto, la mandás al conductor a su teléfono y ves si llegó a cada cliente.'
+          : null,
+        conTransporte
+          ? 'Transporte: vigila que cada bus cumpla su recorrido fijo y deja que las familias o los pasajeros lo sigan con un enlace.'
+          : null,
+        'Cada uno tiene su propia introducción adentro.',
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      objetivo: 'menu-abajo',
+    });
+  }
+  return pasos;
+}
