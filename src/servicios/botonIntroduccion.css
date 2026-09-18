@@ -1,0 +1,7 @@
+/* El birrete de «Ver introducción», dibujado como los demás íconos de los controles del mapa. */
+.maplibre-ctrl-introduccion {
+  background-repeat: no-repeat;
+  background-position: center;
+  pointer-events: auto;
+  background-image: url("data:image/svg+xml,%3Csvg width='22' height='22' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23333' d='M12 3 1 9l11 6 9-4.91V17h2V9zm6.82 6L12 12.72 5.18 9 12 5.28zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73z'/%3E%3C/svg%3E");
+}
