@@ -6,6 +6,14 @@
 import { OPERACIONES } from '../transporte/operaciones';
 import { seccionesVisibles } from '../transporte/secciones';
 
+// En el teléfono una sección ocupa toda la pantalla: resaltarla entera obliga a taparla con la
+// explicación. Se resalta su título (lo que la identifica) y, si no tiene, la sección.
+const TITULO_DE_SECCION = [
+  'css:[data-tour="contenido"] h1',
+  'css:[data-tour="contenido"] h2',
+  'contenido',
+];
+
 const CONSEJOS_TRANSPORTE = {
   hoy: 'Cada bus es un punto sobre la tira de su recorrido: verde va bien, ámbar va atrás, rojo se desvió, gris no tiene datos. Tocá un bus para ver su viaje.',
   recorridos:
@@ -48,6 +56,9 @@ export function pasosTransporte({ operacion, configura, demo }) {
       texto:
         'De arriba hacia abajo: lo que mirás todo el día, lo que armás una vez y lo que compartís y revisás.',
       objetivo: 'menu',
+      // En el teléfono el menú vive detrás de ☰: se señala el botón que lo abre.
+      objetivoMovil: 'abrir-menu',
+      consejoMovil: 'En el teléfono el menú se abre con ☰, arriba a la izquierda.',
     },
   ];
   const ocultasParaConductor = new Set([
@@ -67,6 +78,7 @@ export function pasosTransporte({ operacion, configura, demo }) {
       consejo: CONSEJOS_TRANSPORTE[s.clave] ?? null,
       ruta: s.ruta,
       objetivo: 'contenido',
+      objetivoMovil: TITULO_DE_SECCION,
     });
   }
   pasos.push({
@@ -97,6 +109,9 @@ export function pasosRutas({ planifica, gestionaUsuarios, demo }) {
       titulo: 'Las secciones',
       texto: 'Planificar, ver lo cargado, tu gente y los avisos.',
       objetivo: 'menu',
+      // En el teléfono el menú vive detrás de ☰: se señala el botón que lo abre.
+      objetivoMovil: 'abrir-menu',
+      consejoMovil: 'En el teléfono el menú se abre con ☰, arriba a la izquierda.',
     },
   ];
   if (!planifica) return pasos;
@@ -108,6 +123,7 @@ export function pasosRutas({ planifica, gestionaUsuarios, demo }) {
         'Tus rutas guardadas para repetir («Reparto norte, lunes y jueves») y la libreta de direcciones que se llena sola.',
       ruta: '/rutas',
       objetivo: 'contenido',
+      objetivoMovil: TITULO_DE_SECCION,
     },
     {
       etiqueta: 'Sección',
@@ -118,6 +134,7 @@ export function pasosRutas({ planifica, gestionaUsuarios, demo }) {
         'Si el vehículo ya tiene otra ruta ese día, se ve en la línea del día y podés encadenarla.',
       ruta: '/rutas/planificar',
       objetivo: 'contenido',
+      objetivoMovil: TITULO_DE_SECCION,
     },
     {
       etiqueta: 'Sección',
@@ -126,6 +143,7 @@ export function pasosRutas({ planifica, gestionaUsuarios, demo }) {
         'Lo despachado hoy y los días anteriores: dónde va cada vehículo, qué se entregó, qué no y cuánto atraso lleva. Se exporta a Excel, CSV o Google Earth.',
       ruta: '/rutas/cargadas',
       objetivo: 'contenido',
+      objetivoMovil: TITULO_DE_SECCION,
     },
   );
   if (gestionaUsuarios) {
@@ -136,6 +154,7 @@ export function pasosRutas({ planifica, gestionaUsuarios, demo }) {
         'Conductores y encargados de tu cuenta, con su horario. El conductor recibe el vehículo al despacharle la ruta y lo deja de ver al cerrarla.',
       ruta: '/rutas/usuarios',
       objetivo: 'contenido',
+      objetivoMovil: TITULO_DE_SECCION,
     });
   }
   pasos.push(
@@ -146,6 +165,7 @@ export function pasosRutas({ planifica, gestionaUsuarios, demo }) {
         'Llegadas, entregas que no se pudieron, atrasos y desvíos. Cada persona elige qué le llega por correo y qué en un resumen al final del día.',
       ruta: '/rutas/avisos',
       objetivo: 'contenido',
+      objetivoMovil: TITULO_DE_SECCION,
     },
     {
       etiqueta: 'Listo',
@@ -166,7 +186,15 @@ export function pasosRutas({ planifica, gestionaUsuarios, demo }) {
  *
  * `servicios` dice qué tiene contratado esa cuenta para no prometer lo que no va a encontrar.
  */
-export function pasosMapa({ demo, conRutas, conTransporte, sensores = [] } = {}) {
+export function pasosMapa({
+  demo,
+  conRutas,
+  conTransporte,
+  sensores = [],
+  mostrarLista = () => {},
+  mostrarTarjeta = () => {},
+  ocultarTarjeta = () => {},
+} = {}) {
   const pasos = [
     {
       etiqueta: demo ? 'Demo simulada' : 'Bienvenida',
@@ -183,12 +211,30 @@ export function pasosMapa({ demo, conRutas, conTransporte, sensores = [] } = {})
       texto:
         'Todos tus vehículos, con el color de su estado: en línea, sin reportar o detenido. Tocá uno y el mapa te lo muestra; el buscador de arriba sirve cuando son muchos.',
       objetivo: 'lista-vehiculos',
+      // En el teléfono la lista no está a la izquierda: se abre con el botón de arriba. Se abre
+      // de verdad para que se vea de qué se habla.
+      tituloMovil: 'La lista de tus vehículos',
+      textoMovil:
+        'Todos tus vehículos, con el color de su estado: en línea, sin reportar o detenido. Tocá uno y el mapa te lo muestra.',
+      consejoMovil: 'El botón de arriba a la izquierda cambia entre la lista y el mapa.',
+      // La lista ocupa toda la pantalla: se resalta el primer vehículo, que es lo que se explica.
+      objetivoMovil: [
+        'css:[data-tour="lista-contenido"] .MuiListItemButton-root',
+        'lista-contenido',
+      ],
+      alMostrar: ({ telefono }) => {
+        ocultarTarjeta();
+        mostrarLista(telefono);
+      },
     },
     {
       etiqueta: 'La tarjeta',
       titulo: 'Qué dice cada dato',
+      // Se abre la tarjeta de un vehículo de verdad y se explica encima de ella.
+      alMostrar: () => mostrarTarjeta(),
+      objetivo: 'tarjeta',
       texto: [
-        'Al tocar un vehículo se abre su tarjeta:',
+        'Al tocar un vehículo se abre su tarjeta, como esta:',
         '· Hora — cuándo mandó la última posición.',
         '· Velocidad — a cuánto iba en ese momento.',
         '· Encendido — si el motor estaba andando.',
@@ -201,10 +247,19 @@ export function pasosMapa({ demo, conRutas, conTransporte, sensores = [] } = {})
         .filter(Boolean)
         .join('\n'),
       consejo: 'Tocá «Más detalles» para ver todo lo que manda el equipo.',
+      // En el teléfono la tarjeta y la explicación comparten la pantalla: la tarjeta ya dice el
+      // nombre de cada dato, así que alcanza con un párrafo corto que no la tape.
+      textoMovil: [
+        'Esta es la tarjeta del vehículo. De arriba hacia abajo: cuándo mandó la última posición, a qué velocidad iba, si el motor está encendido, la batería del carro, si está bloqueado y lo que lleva recorrido',
+        sensores.length ? `, además de ${sensores.join(' y ')}.` : '.',
+      ].join(''),
+      consejoMovil: null,
     },
     {
       etiqueta: 'Botones',
       titulo: 'Qué podés hacer con un vehículo',
+      alMostrar: () => mostrarTarjeta(),
+      objetivo: 'acciones-tarjeta',
       texto:
         'En la tarjeta: «…» para abrirlo en Google Maps o compartirlo, el icono de recorrido para ver por dónde anduvo, y el de enviar para mandarle un comando al equipo (por ejemplo, bloquear el motor si tenés ese servicio).',
     },
@@ -213,7 +268,8 @@ export function pasosMapa({ demo, conRutas, conTransporte, sensores = [] } = {})
       titulo: 'El historial y las gráficas',
       texto:
         'En Reportes está lo que pasó: viajes, paradas, eventos, un resumen por vehículo y la gráfica, donde se ve cómo cambió la velocidad, el combustible o la temperatura a lo largo del día.',
-      objetivo: 'menu-abajo',
+      alMostrar: () => ocultarTarjeta(),
+      objetivo: 'menu-abajo-reportes',
     },
   ];
   if (conRutas || conTransporte) {

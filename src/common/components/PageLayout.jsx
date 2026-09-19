@@ -159,6 +159,8 @@ const PageLayout = ({ menu, breadcrumbs, children }) => {
               edge="start"
               sx={{ mr: 2 }}
               onClick={() => setOpenDrawer(true)}
+              aria-label="Abrir el menú"
+              data-tour="abrir-menu"
             >
               <MenuIcon />
             </IconButton>

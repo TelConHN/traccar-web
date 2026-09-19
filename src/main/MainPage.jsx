@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Paper } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useTheme } from '@mui/material/styles';
@@ -85,6 +85,28 @@ const MainPage = () => {
     temp1: posiciones.some((p) => p?.attributes?.temp1 !== undefined),
   };
   const tour = useTour('mapa', vehiculos.length > 0);
+  // Si la introducción abrió una tarjeta para explicarla, la cierra al terminar: la pantalla
+  // queda como la persona la tenía.
+  const tarjetaDelTourRef = useRef(false);
+  const mostrarTarjeta = () => {
+    if (!desktop) setDevicesOpen(false);
+    if (selectedDeviceId) return;
+    const conPosicion = vehiculos.find((d) => positions[d.id]) ?? vehiculos[0];
+    if (!conPosicion) return;
+    tarjetaDelTourRef.current = true;
+    dispatch(devicesActions.selectId(conPosicion.id));
+  };
+  const ocultarTarjeta = () => {
+    if (tarjetaDelTourRef.current) {
+      tarjetaDelTourRef.current = false;
+      dispatch(devicesActions.selectId(null));
+    }
+  };
+  const cerrarTour = () => {
+    ocultarTarjeta();
+    if (!desktop) setDevicesOpen(false);
+    tour.cerrar();
+  };
   const positions = useSelector((state) => state.session.positions);
   const [filteredPositions, setFilteredPositions] = useState([]);
   const selectedPosition = filteredPositions.find(
@@ -161,6 +183,7 @@ const MainPage = () => {
             square
             className={classes.contentList}
             style={devicesOpen ? {} : { visibility: 'hidden' }}
+            data-tour="lista-contenido"
           >
             <DeviceList devices={filteredDevices} />
           </Paper>
@@ -176,8 +199,11 @@ const MainPage = () => {
       <BotonIntroduccion onAbrir={tour.abrir} />
       <TourGuiado
         abierto={tour.abierto}
-        onCerrar={tour.cerrar}
+        onCerrar={cerrarTour}
         pasos={pasosMapa({
+          mostrarLista: (telefono) => telefono && setDevicesOpen(true),
+          mostrarTarjeta,
+          ocultarTarjeta,
           demo: Boolean(esDemo),
           conRutas: vehiculos.some((d) => d.attributes?.rutas === true),
           conTransporte: vehiculos.some((d) => d.attributes?.transporte === true),

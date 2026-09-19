@@ -188,7 +188,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
             dragHandleClassName="draggable-header"
             style={{ position: 'relative' }}
           >
-            <Card elevation={3} className={classes.card}>
+            <Card elevation={3} className={classes.card} data-tour="tarjeta">
               {deviceImage ? (
                 <CardMedia
                   className={`${classes.media} draggable-header`}
@@ -248,7 +248,11 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                   </Table>
                 </CardContent>
               )}
-              <CardActions classes={{ root: classes.actions }} disableSpacing>
+              <CardActions
+                classes={{ root: classes.actions }}
+                disableSpacing
+                data-tour="acciones-tarjeta"
+              >
                 <Tooltip title={t('sharedExtra')}>
                   <IconButton
                     color="secondary"

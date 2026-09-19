@@ -225,6 +225,7 @@ const BottomMenu = () => {
             icon={<DescriptionIcon />}
             value="reports"
             sx={accion}
+            data-tour="menu-abajo-reportes"
           />
         )}
         {/* Solo aparece si alguno de sus vehículos tiene el servicio contratado. Para todos
