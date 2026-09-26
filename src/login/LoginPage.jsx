@@ -12,6 +12,8 @@ import {
   Tooltip,
   Box,
   InputAdornment,
+  Alert,
+  AlertTitle,
 } from '@mui/material';
 import CountryFlag from 'react-country-flag';
 import { makeStyles } from 'tss-react/mui';
@@ -108,6 +110,9 @@ const LoginPage = () => {
   }));
 
   const [failed, setFailed] = useState(false);
+  // Cuenta deshabilitada desde el panel de admin (suspensión). Antes se mostraba como
+  // "contraseña incorrecta" y la persona seguía probando claves sin saber qué pasaba.
+  const [suspendida, setSuspendida] = useState(false);
 
   const [email, setEmail] = usePersistedState('loginEmail', '');
   const [password, setPassword] = useState('');
@@ -146,6 +151,7 @@ const LoginPage = () => {
   const handlePasswordLogin = async (event) => {
     event.preventDefault();
     setFailed(false);
+    setSuspendida(false);
     try {
       const query = `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
       const response = await fetch('/api/session', {
@@ -162,7 +168,15 @@ const LoginPage = () => {
       } else if (response.status === 401 && response.headers.get('WWW-Authenticate') === 'TOTP') {
         setCodeEnabled(true);
       } else {
-        throw Error(await response.text());
+        const text = await response.text();
+        // El servidor solo llega a decir "User is disabled" DESPUÉS de validar la contraseña
+        // (LoginService), así que mostrarlo no le revela a nadie qué correos tienen cuenta.
+        if (response.status === 400 && /user is disabled/i.test(text)) {
+          setSuspendida(true);
+          setPassword('');
+          return;
+        }
+        throw Error(text);
       }
     } catch {
       setFailed(true);
@@ -273,6 +287,13 @@ const LoginPage = () => {
                 },
               }}
             />
+            {suspendida && (
+              <Alert severity="warning">
+                <AlertTitle>Acceso suspendido</AlertTitle>
+                El acceso de esta cuenta está suspendido. Para más información, comuníquese con el
+                titular del servicio o con TelConHN al 9316-0446.
+              </Alert>
+            )}
             {codeEnabled && (
               <TextField
                 required
