@@ -43,7 +43,7 @@ import fetchOrThrow from '../common/util/fetchOrThrow';
 const deviceFields = [
   { id: 'name', name: 'sharedName' },
   { id: 'uniqueId', name: 'deviceIdentifier' },
-  { id: 'phone', name: 'sharedPhone' },
+  { id: 'phone', name: 'deviceSim' },
   { id: 'model', name: 'deviceModel' },
   { id: 'contact', name: 'deviceContact' },
   { id: 'geofenceIds', name: 'sharedGeofence' },

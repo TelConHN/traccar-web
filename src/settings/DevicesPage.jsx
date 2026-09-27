@@ -80,7 +80,7 @@ const DevicesPage = () => {
       [t('sharedName')]: item.name,
       [t('deviceIdentifier')]: item.uniqueId,
       [t('groupParent')]: item.groupId ? groups[item.groupId]?.name : null,
-      [t('sharedPhone')]: item.phone,
+      [t('deviceSim')]: item.phone,
       [t('deviceModel')]: item.model,
       [t('deviceContact')]: item.contact,
       [t('userExpirationTime')]: formatTime(item.expirationTime, 'date'),
@@ -111,7 +111,7 @@ const DevicesPage = () => {
             <TableCell>{t('sharedName')}</TableCell>
             <TableCell>{t('deviceIdentifier')}</TableCell>
             <TableCell>{t('groupParent')}</TableCell>
-            <TableCell>{t('sharedPhone')}</TableCell>
+            <TableCell>{t('deviceSim')}</TableCell>
             <TableCell>{t('deviceModel')}</TableCell>
             <TableCell>{t('deviceContact')}</TableCell>
             <TableCell>{t('userExpirationTime')}</TableCell>

@@ -220,6 +220,7 @@
     "deviceSecondaryInfo": "Device Detail",
     "deviceIdentifier": "Identifier",
     "deviceModel": "Model",
+    "deviceSim": "SIM",
     "deviceContact": "Contact",
     "deviceCategory": "Category",
     "deviceLastUpdate": "Last Update",

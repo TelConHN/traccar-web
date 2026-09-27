@@ -103,7 +103,7 @@ const DevicePage = () => {
               <TextField
                 value={item.phone || ''}
                 onChange={(event) => setItem({ ...item, phone: event.target.value })}
-                label={t('sharedPhone')}
+                label={t('deviceSim')}
               />
               <TextField
                 value={item.model || ''}
