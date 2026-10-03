@@ -22,6 +22,7 @@ const CollectionActions = ({
   setTimestamp,
   customActions,
   readonly,
+  onRemove,
 }) => {
   const theme = useTheme();
   const { classes } = useStyles();
@@ -38,8 +39,13 @@ const CollectionActions = ({
     setMenuAnchorEl(null);
   };
 
+  // onRemove: la pantalla trae su propia confirmación en vez del aviso rápido de abajo.
   const handleRemove = () => {
-    setRemoving(true);
+    if (onRemove) {
+      onRemove(itemId);
+    } else {
+      setRemoving(true);
+    }
     setMenuAnchorEl(null);
   };
 

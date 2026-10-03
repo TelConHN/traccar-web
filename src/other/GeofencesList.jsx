@@ -20,28 +20,36 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const GeofencesList = ({ onGeofenceSelected }) => {
+// refresh / visibleIds / onRemove / secondary los pasa la pantalla de geocercas (pestañas de
+// administración); sin ellos la lista se comporta como siempre.
+const GeofencesList = ({ onGeofenceSelected, refresh, visibleIds, onRemove, secondary }) => {
   const { classes } = useStyles();
   const dispatch = useDispatch();
 
   const items = useSelector((state) => state.geofences.items);
 
-  const refreshGeofences = useCatchCallback(async () => {
+  const defaultRefresh = useCatchCallback(async () => {
     const response = await fetchOrThrow('/api/geofences');
     dispatch(geofencesActions.refresh(await response.json()));
   }, [dispatch]);
+  const refreshGeofences = refresh || defaultRefresh;
+
+  const shown = Object.values(items)
+    .filter((item) => !visibleIds || visibleIds.has(item.id))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   return (
     <List className={classes.list}>
-      {Object.values(items).map((item, index, list) => (
+      {shown.map((item, index, list) => (
         <Fragment key={item.id}>
           <ListItemButton key={item.id} onClick={() => onGeofenceSelected(item.id)}>
-            <ListItemText primary={item.name} />
+            <ListItemText primary={item.name} secondary={secondary ? secondary(item) : null} />
             <CollectionActions
               itemId={item.id}
               editPath="/settings/geofence"
               endpoint="geofences"
               setTimestamp={refreshGeofences}
+              onRemove={onRemove}
             />
           </ListItemButton>
           {index < list.length - 1 ? <Divider /> : null}

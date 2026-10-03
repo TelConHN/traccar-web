@@ -55,10 +55,11 @@ const EditItemView = ({
       body: JSON.stringify(item),
     });
 
-    if (onItemSaved) {
-      onItemSaved(await response.json());
+    // onItemSaved puede ser async; si devuelve true, la página se queda abierta.
+    const stay = onItemSaved ? await onItemSaved(await response.json()) : false;
+    if (stay !== true) {
+      navigate(-1);
     }
-    navigate(-1);
   });
 
   return (

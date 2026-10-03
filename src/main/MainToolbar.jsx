@@ -1,7 +1,9 @@
-import { useState, useRef } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
+  Autocomplete,
+  TextField,
   Toolbar,
   IconButton,
   OutlinedInput,
@@ -55,6 +57,7 @@ const MainToolbar = ({
   setFilterSort,
   filterMap,
   setFilterMap,
+  owners,
 }) => {
   const { classes } = useStyles();
   const theme = useTheme();
@@ -74,6 +77,20 @@ const MainToolbar = ({
   const deviceStatusCount = (status) =>
     Object.values(devices).filter((d) => d.status === status).length;
 
+  // Solo administrador (owners viene vacío para los demás): clientes con cuántos carros tiene cada uno.
+  const clients = useMemo(() => {
+    const byId = {};
+    Object.entries(owners || {}).forEach(([deviceId, list]) => {
+      if (!devices[deviceId]) return;
+      list.forEach((owner) => {
+        byId[owner.id] = byId[owner.id] || { ...owner, count: 0 };
+        byId[owner.id].count += 1;
+      });
+    });
+    return Object.values(byId).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [owners, devices]);
+  const selectedUsers = filter.users || [];
+
   return (
     <Toolbar ref={toolbarRef} className={classes.toolbar}>
       <IconButton edge="start" onClick={() => setDevicesOpen(!devicesOpen)}>
@@ -92,7 +109,9 @@ const MainToolbar = ({
               <Badge
                 color="info"
                 variant="dot"
-                invisible={!filter.statuses.length && !filter.groups.length}
+                invisible={
+                  !filter.statuses.length && !filter.groups.length && !selectedUsers.length
+                }
               >
                 <TuneIcon fontSize="small" />
               </Badge>
@@ -169,6 +188,39 @@ const MainToolbar = ({
                 ))}
             </Select>
           </FormControl>
+          {clients.length > 0 && (
+            <Autocomplete
+              multiple
+              options={clients}
+              value={clients.filter((client) => selectedUsers.includes(client.id))}
+              onChange={(event, value) =>
+                setFilter({ ...filter, users: value.map((client) => client.id) })
+              }
+              getOptionLabel={(client) => client.name || ''}
+              filterOptions={(options, { inputValue }) => {
+                const text = inputValue.trim().toLowerCase();
+                return options.filter((client) =>
+                  `${client.name || ''} ${client.email || ''}`.toLowerCase().includes(text),
+                );
+              }}
+              renderOption={(props, client) => {
+                const { key, ...rest } = props;
+                return (
+                  <li key={key} {...rest}>
+                    <ListItemText
+                      primary={`${client.name} (${client.count})`}
+                      secondary={client.email !== client.name ? client.email : null}
+                    />
+                  </li>
+                );
+              }}
+              isOptionEqualToValue={(a, b) => a.id === b.id}
+              noOptionsText="Ningún cliente coincide"
+              renderInput={(params) => (
+                <TextField {...params} label="Clientes" placeholder="Nombre o correo" />
+              )}
+            />
+          )}
           <FormControl>
             <InputLabel>{t('sharedSortBy')}</InputLabel>
             <Select

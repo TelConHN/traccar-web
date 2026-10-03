@@ -14,6 +14,7 @@ import { devicesActions } from '../store';
 import usePersistedState from '../common/util/usePersistedState';
 import EventsDrawer from './EventsDrawer';
 import useFilter from './useFilter';
+import useDeviceOwners from './useDeviceOwners';
 import MainToolbar from './MainToolbar';
 import MainMap from './MainMap';
 import { useAttributePreference } from '../common/util/preferences';
@@ -134,6 +135,8 @@ const MainPage = () => {
     }
   }, [desktop, mapOnSelect, selectedDeviceId]);
 
+  const owners = useDeviceOwners();
+
   useFilter(
     keyword,
     filter,
@@ -142,6 +145,7 @@ const MainPage = () => {
     positions,
     setFilteredDevices,
     setFilteredPositions,
+    owners,
   );
 
   return (
@@ -167,6 +171,7 @@ const MainPage = () => {
             setFilterSort={setFilterSort}
             filterMap={filterMap}
             setFilterMap={setFilterMap}
+            owners={owners}
           />
         </Paper>
         <div className={classes.middle}>

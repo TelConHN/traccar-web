@@ -18,7 +18,17 @@ MapboxDraw.constants.classes.CONTROL_BASE = 'maplibregl-ctrl';
 MapboxDraw.constants.classes.CONTROL_PREFIX = 'maplibregl-ctrl-';
 MapboxDraw.constants.classes.CONTROL_GROUP = 'maplibregl-ctrl-group';
 
-const MapGeofenceEdit = ({ selectedGeofenceId }) => {
+// refresh: recarga el store (la pantalla de geocercas decide si son las propias o las de todos).
+// visibleIds: si viene, solo se dibujan esas. onRemoveRequest: si viene, el bote de basura no
+// borra directo sino que le pide confirmación a la pantalla. newQuery: se agrega al abrir el
+// formulario de la geocerca recién dibujada (p. ej. ?cliente=ID desde la pestaña Usuarios).
+const MapGeofenceEdit = ({
+  selectedGeofenceId,
+  refresh,
+  visibleIds,
+  onRemoveRequest,
+  newQuery = '',
+}) => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -57,10 +67,11 @@ const MapGeofenceEdit = ({ selectedGeofenceId }) => {
 
   const geofences = useSelector((state) => state.geofences.items);
 
-  const refreshGeofences = useCatchCallback(async () => {
+  const defaultRefresh = useCatchCallback(async () => {
     const response = await fetchOrThrow('/api/geofences');
     dispatch(geofencesActions.refresh(await response.json()));
   }, [dispatch]);
+  const refreshGeofences = refresh || defaultRefresh;
 
   useEffect(() => {
     refreshGeofences();
@@ -81,7 +92,7 @@ const MapGeofenceEdit = ({ selectedGeofenceId }) => {
           body: JSON.stringify(newItem),
         });
         const item = await response.json();
-        navigate(`/settings/geofence/${item.id}`);
+        navigate(`/settings/geofence/${item.id}${newQuery}`);
       } catch (error) {
         dispatch(errorsActions.push(error.message));
       }
@@ -89,11 +100,15 @@ const MapGeofenceEdit = ({ selectedGeofenceId }) => {
 
     map.on('draw.create', listener);
     return () => map.off('draw.create', listener);
-  }, [dispatch, navigate]);
+  }, [dispatch, navigate, newQuery]);
 
   useEffect(() => {
     const listener = async (event) => {
       const feature = event.features[0];
+      if (onRemoveRequest) {
+        onRemoveRequest(feature.id);
+        return;
+      }
       try {
         await fetchOrThrow(`/api/geofences/${feature.id}`, { method: 'DELETE' });
         refreshGeofences();
@@ -104,7 +119,7 @@ const MapGeofenceEdit = ({ selectedGeofenceId }) => {
 
     map.on('draw.delete', listener);
     return () => map.off('draw.delete', listener);
-  }, [dispatch, refreshGeofences]);
+  }, [dispatch, refreshGeofences, onRemoveRequest]);
 
   useEffect(() => {
     const listener = async (event) => {
@@ -131,14 +146,19 @@ const MapGeofenceEdit = ({ selectedGeofenceId }) => {
 
   useEffect(() => {
     draw.deleteAll();
-    Object.values(geofences).forEach((geofence) => {
-      draw.add(geofenceToFeature(theme, geofence));
-    });
-  }, [geofences]);
+    Object.values(geofences)
+      .filter((geofence) => !visibleIds || visibleIds.has(geofence.id))
+      .forEach((geofence) => {
+        draw.add(geofenceToFeature(theme, geofence));
+      });
+  }, [geofences, visibleIds]);
 
   useEffect(() => {
     if (selectedGeofenceId) {
       const feature = draw.get(selectedGeofenceId);
+      if (!feature) {
+        return;
+      }
       let { coordinates } = feature.geometry;
       if (Array.isArray(coordinates[0][0])) {
         [coordinates] = coordinates;

@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
+const NO_OWNERS = {};
+
 export default (
   keyword,
   filter,
@@ -10,11 +12,15 @@ export default (
   positions,
   setFilteredDevices,
   setFilteredPositions,
+  owners = NO_OWNERS,
 ) => {
   const groups = useSelector((state) => state.groups.items);
   const devices = useSelector((state) => state.devices.items);
 
+  // owners (solo administrador, ver useDeviceOwners): filtro por cliente y búsqueda por su
+  // nombre o correo.
   useEffect(() => {
+    const users = filter.users || [];
     const deviceGroups = (device) => {
       const groupIds = [];
       let { groupId } = device;
@@ -31,11 +37,21 @@ export default (
         (device) =>
           !filter.groups.length || deviceGroups(device).some((id) => filter.groups.includes(id)),
       )
+      .filter(
+        (device) =>
+          !users.length || (owners[device.id] || []).some((owner) => users.includes(owner.id)),
+      )
       .filter((device) => {
         const lowerCaseKeyword = keyword.toLowerCase();
-        return [device.name, device.uniqueId, device.phone, device.model, device.contact].some(
-          (s) => s && s.toLowerCase().includes(lowerCaseKeyword),
-        );
+        const ownerFields = (owners[device.id] || []).flatMap((owner) => [owner.name, owner.email]);
+        return [
+          device.name,
+          device.uniqueId,
+          device.phone,
+          device.model,
+          device.contact,
+          ...ownerFields,
+        ].some((s) => s && s.toLowerCase().includes(lowerCaseKeyword));
       });
     switch (filterSort) {
       case 'name':
@@ -64,6 +80,7 @@ export default (
     filterMap,
     groups,
     devices,
+    owners,
     positions,
     setFilteredDevices,
     setFilteredPositions,
