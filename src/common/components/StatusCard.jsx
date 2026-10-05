@@ -212,8 +212,15 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                 <CardContent className={classes.content}>
                   <Table size="small" classes={{ root: classes.table }}>
                     <TableBody>
-                      {positionItems
-                        .split(',')
+                      {[
+                        ...positionItems.split(','),
+                        // El conductor identificado por tarjeta se muestra siempre que lo haya,
+                        // aunque la cuenta no lo tenga en Preferencias → Atributos de posición.
+                        ...(position.attributes.driverUniqueId &&
+                        !positionItems.split(',').includes('driverUniqueId')
+                          ? ['driverUniqueId']
+                          : []),
+                      ]
                         .filter(
                           (key) =>
                             position.hasOwnProperty(key) || position.attributes.hasOwnProperty(key),

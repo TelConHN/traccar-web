@@ -8,9 +8,11 @@ import {
 } from './store';
 import { useEffectAsync } from './reactHelper';
 import fetchOrThrow from './common/util/fetchOrThrow';
+import fetchDrivers from './common/util/fetchDrivers';
 
 const CachingController = () => {
   const authenticated = useSelector((state) => !!state.session.user);
+  const administrator = useSelector((state) => !!state.session.user?.administrator);
   const dispatch = useDispatch();
 
   useEffectAsync(async () => {
@@ -29,10 +31,9 @@ const CachingController = () => {
 
   useEffectAsync(async () => {
     if (authenticated) {
-      const response = await fetchOrThrow('/api/drivers');
-      dispatch(driversActions.refresh(await response.json()));
+      dispatch(driversActions.refresh(await fetchDrivers(administrator)));
     }
-  }, [authenticated]);
+  }, [authenticated, administrator]);
 
   useEffectAsync(async () => {
     if (authenticated) {
