@@ -53,6 +53,13 @@ const actionTypes = [
   ['unlink', 'Desvinculó'],
   ['report', 'Reporte'],
   ['accumulators', 'Ajustó odómetro/horas'],
+  ['speedLimit', 'Límite de velocidad'],
+  ['removePositions', 'Borró historial'],
+  ['share', 'Compartió enlace'],
+  ['passwordReset', 'Pidió restablecer contraseña'],
+  ['passwordUpdate', 'Cambió contraseña (enlace)'],
+  ['message', 'Envió mensaje'],
+  ['server', 'Servidor'],
 ];
 const actionTypeMap = new Map(actionTypes);
 
@@ -71,6 +78,68 @@ const objectTypeLabels = {
   token: 'Token',
 };
 
+// Nombre de cada campo en "Editó …"; uno que no está aquí se muestra con su nombre técnico.
+const fieldLabels = {
+  name: 'Nombre',
+  uniqueId: 'Identificador (IMEI)',
+  phone: 'Teléfono',
+  model: 'Modelo',
+  contact: 'Contacto',
+  category: 'Categoría',
+  disabled: 'Deshabilitado',
+  expirationTime: 'Vence',
+  groupId: 'Grupo',
+  calendarId: 'Calendario',
+  email: 'Correo',
+  login: 'Usuario',
+  readonly: 'Solo lectura',
+  administrator: 'Administrador',
+  deviceLimit: 'Límite de vehículos',
+  userLimit: 'Límite de usuarios',
+  deviceReadonly: 'Vehículos solo lectura',
+  limitCommands: 'Limitar comandos',
+  disableReports: 'Sin reportes',
+  fixedEmail: 'Correo fijo',
+  password: 'Contraseña',
+  totpKey: 'Verificación en dos pasos',
+  description: 'Descripción',
+  area: 'Área',
+  type: 'Tipo',
+  always: 'Todos los vehículos',
+  notificators: 'Canales',
+  commandId: 'Comando',
+  'attributes.speedLimitSupported': 'Limitador en el GPS',
+  'attributes.speedLimitCommand': 'Plantilla del límite',
+  'attributes.speedLimitEnabled': 'Servicio de límite de velocidad',
+  'attributes.bloqueoMotor': 'Bloqueo de motor',
+  'attributes.transporteVelocidad': 'Velocidad de Transporte',
+  'attributes.autoUsers': 'Agregar sola a los carros de',
+  'attributes.notifyAdministrators': 'Avisar a administración',
+};
+
+const fieldLabel = (field) =>
+  fieldLabels[field] || (field.startsWith('attributes.') ? `Atributo ${field.slice(11)}` : field);
+
+const fieldValue = (value) => {
+  if (value == null || value === '') {
+    return '(vacío)';
+  }
+  if (value === true || value === 'true') {
+    return 'Sí';
+  }
+  if (value === false || value === 'false') {
+    return 'No';
+  }
+  return String(value);
+};
+
+const serverOperations = {
+  reboot: 'Reinició el servidor',
+  gc: 'Liberó memoria del servidor',
+  cache: 'Consultó la caché del servidor',
+  file: 'Subió un archivo a la web',
+};
+
 const AuditPage = () => {
   const { classes } = useReportStyles();
   const t = useTranslation();
@@ -80,10 +149,16 @@ const AuditPage = () => {
   const narrow = useMediaQuery(theme.breakpoints.down('lg'));
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const devices = useSelector((state) => state.devices.items);
+  // Solo id y nombre, y la misma lista mientras no cambien. El estado de los carros se actualiza
+  // cada pocos segundos; si de eso salía una lista nueva, el buscador borraba lo que se escribía.
+  const deviceOptions = useSelector(
+    (state) => Object.values(state.devices.items).map(({ id, name }) => ({ id, name })),
+    (a, b) =>
+      a.length === b.length && a.every((item, i) => item.id === b[i].id && item.name === b[i].name),
+  );
   const deviceList = useMemo(
-    () => Object.values(devices).sort((a, b) => (a.name || '').localeCompare(b.name || '')),
-    [devices],
+    () => [...deviceOptions].sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+    [deviceOptions],
   );
 
   const [users, setUsers] = useState([]);
@@ -93,9 +168,20 @@ const AuditPage = () => {
     setUsers(list.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
   }, []);
 
-  const userIds = searchParams.getAll('userId').map(Number);
-  const deviceIds = searchParams.getAll('deviceId').map(Number);
-  const selectedTypes = searchParams.getAll('actionType');
+  // El Autocomplete de MUI borra el texto que se está escribiendo cada vez que su valor llega como
+  // arreglo nuevo, aunque tenga lo mismo. Por eso las selecciones se arman solo cuando cambian.
+  const userIdsKey = searchParams.getAll('userId').join(',');
+  const deviceIdsKey = searchParams.getAll('deviceId').join(',');
+  const typesKey = searchParams.getAll('actionType').join(',');
+  const userIds = useMemo(
+    () => (userIdsKey ? userIdsKey.split(',').map(Number) : []),
+    [userIdsKey],
+  );
+  const deviceIds = useMemo(
+    () => (deviceIdsKey ? deviceIdsKey.split(',').map(Number) : []),
+    [deviceIdsKey],
+  );
+  const selectedTypes = useMemo(() => (typesKey ? typesKey.split(',') : []), [typesKey]);
 
   const [columns, setColumns] = usePersistedState('auditColumnsV2', [
     'actionTime',
@@ -170,46 +256,165 @@ const AuditPage = () => {
     );
   };
 
-  const renderDetail = (item) => {
-    if (item.actionType === 'command') {
-      if (!item.attributes.commandType) {
-        return (
-          <Typography variant="caption" color="textSecondary">
-            No registrado (comando anterior a esta versión)
-          </Typography>
-        );
+  // Cada renglón es [texto, tono]: 'main' en letra normal, 'note' en gris, 'error' en rojo.
+  // La pantalla y el Excel salen de aquí mismo.
+  const detailLines = (item) => {
+    const { attributes } = item;
+    const lines = [];
+    switch (item.actionType) {
+      case 'command': {
+        if (!attributes.commandType) {
+          return [['No registrado (comando anterior a esta versión)', 'note']];
+        }
+        lines.push([commandLabel(item), 'main']);
+        if (attributes.automatic) {
+          const event = attributes.eventType
+            ? ` (${translated(prefixString('event', attributes.eventType), attributes.eventType)})`
+            : '';
+          const notification = attributes.notificationDescription
+            ? ` «${attributes.notificationDescription}»`
+            : '';
+          lines.push([`Automático: lo mandó la notificación${notification}${event}`, 'note']);
+        }
+        if (attributes.sms) {
+          lines.push(['Por SMS', 'note']);
+        }
+        if (attributes.status === 'queued') {
+          lines.push([
+            item.queuedSentTime
+              ? `Quedó en cola; se entregó ${formatTime(item.queuedSentTime, 'minutes')}`
+              : 'En cola: el equipo no estaba conectado y aún no se ha entregado',
+            'note',
+          ]);
+        }
+        if (attributes.status === 'failed') {
+          lines.push([
+            `No se pudo enviar${attributes.error ? `: ${attributes.error}` : ''}`,
+            'error',
+          ]);
+        }
+        return lines;
       }
-      const { status } = item.attributes;
-      return (
-        <>
-          <Typography variant="body2">{commandLabel(item)}</Typography>
-          {item.attributes.sms && (
-            <Typography variant="caption" color="textSecondary" display="block">
-              Por SMS
-            </Typography>
-          )}
-          {status === 'queued' && (
-            <Typography variant="caption" color="textSecondary" display="block">
-              {item.queuedSentTime
-                ? `Quedó en cola; se entregó ${formatTime(item.queuedSentTime, 'minutes')}`
-                : 'En cola: el equipo no estaba conectado y aún no se ha entregado'}
-            </Typography>
-          )}
-          {status === 'failed' && (
-            <Typography variant="caption" color="error" display="block">
-              No se pudo enviar{item.attributes.error ? `: ${item.attributes.error}` : ''}
-            </Typography>
-          )}
-        </>
-      );
+      case 'report': {
+        const type = attributes.type || '';
+        const scheduled = attributes.scheduled ? ' (programado)' : '';
+        return [
+          [
+            `${translated(prefixString('report', type), type)} · ${attributes.from} → ${attributes.to}${scheduled}`,
+            'main',
+          ],
+        ];
+      }
+      case 'edit':
+        if (attributes.unchanged) {
+          return [['Guardó sin cambiar nada', 'note']];
+        }
+        (attributes.changes || []).forEach(({ field, from, to }) => {
+          lines.push([`${fieldLabel(field)}: ${fieldValue(from)} → ${fieldValue(to)}`, 'main']);
+        });
+        if (attributes.changesOmitted) {
+          lines.push([
+            `y ${attributes.changesOmitted} cambio(s) más que no cupieron en el registro`,
+            'note',
+          ]);
+        }
+        return lines;
+      case 'speedLimit': {
+        const from = attributes.from != null ? `${attributes.from} km/h` : 'Sin límite';
+        const to = attributes.to != null ? `${attributes.to} km/h` : 'sin límite';
+        lines.push([`${from} → ${to}`, 'main']);
+        lines.push([
+          attributes.hardware
+            ? 'Se mandó también al GPS (el comando aparece aparte)'
+            : 'Guardado en la plataforma',
+          'note',
+        ]);
+        return lines;
+      }
+      case 'accumulators': {
+        const km = (meters) => (meters != null ? `${(meters / 1000).toFixed(1)} km` : '(vacío)');
+        const hours = (ms) => (ms != null ? `${Math.round(ms / 3600000)} h` : '(vacío)');
+        if (attributes.totalDistance != null) {
+          lines.push([
+            `Odómetro: ${km(attributes.previousTotalDistance)} → ${km(attributes.totalDistance)}`,
+            'main',
+          ]);
+        }
+        if (attributes.hours != null) {
+          lines.push([
+            `Horas de motor: ${hours(attributes.previousHours)} → ${hours(attributes.hours)}`,
+            'main',
+          ]);
+        }
+        return lines;
+      }
+      case 'removePositions':
+        if (attributes.positionId) {
+          return [
+            [
+              `Borró un punto del historial${attributes.from ? ` (${attributes.from})` : ''}`,
+              'main',
+            ],
+          ];
+        }
+        return [[`Borró el historial del ${attributes.from} al ${attributes.to}`, 'main']];
+      case 'share':
+        return [
+          [
+            `Enlace para ver sin cuenta${attributes.expiration ? `, vence ${attributes.expiration}` : ''}`,
+            'main',
+          ],
+        ];
+      case 'passwordReset':
+        lines.push([`Para ${attributes.email || '(sin correo)'}`, 'main']);
+        if (!item.userId) {
+          lines.push(['Ese correo no es de ninguna cuenta', 'note']);
+        }
+        return lines;
+      case 'passwordUpdate':
+        return [['Cambió la contraseña con el enlace del correo', 'main']];
+      case 'message':
+        return [
+          [
+            `Por ${attributes.notificator} a ${attributes.recipients} cuenta(s)${
+              attributes.subject ? `: «${attributes.subject}»` : ''
+            }`,
+            'main',
+          ],
+        ];
+      case 'server':
+        return [
+          [
+            `${serverOperations[attributes.operation] || attributes.operation}${
+              attributes.detail ? `: ${attributes.detail}` : ''
+            }`,
+            'main',
+          ],
+        ];
+      case 'denied':
+        return attributes.email ? [[`Intentó entrar como ${attributes.email}`, 'main']] : [];
+      default:
+        return [];
     }
-    if (item.actionType === 'report') {
-      const type = item.attributes.type || '';
-      return `${translated(prefixString('report', type), type)} · ${item.attributes.from} → ${
-        item.attributes.to
-      }${item.attributes.scheduled ? ' (programado)' : ''}`;
+  };
+
+  const toneColor = { main: undefined, note: 'textSecondary', error: 'error' };
+
+  const renderDetail = (item) => {
+    const lines = detailLines(item);
+    if (!lines.length) {
+      return '';
     }
-    return '';
+    return lines.map(([text, tone]) => (
+      <Typography
+        key={text}
+        variant={tone === 'main' ? 'body2' : 'caption'}
+        color={toneColor[tone]}
+        display="block"
+      >
+        {text}
+      </Typography>
+    ));
   };
 
   const renderResult = (item) => {
@@ -257,8 +462,13 @@ const AuditPage = () => {
           <>
             <Typography variant="body2">{item.userName || `#${item.userId}`}</Typography>
             {item.userEmail && item.userEmail !== item.userName && (
-              <Typography variant="caption" color="textSecondary">
+              <Typography variant="caption" color="textSecondary" display="block">
                 {item.userEmail}
+              </Typography>
+            )}
+            {item.attributes.actor && (
+              <Typography variant="caption" color="primary" display="block">
+                Pedido por {item.attributes.actor}
               </Typography>
             )}
           </>
@@ -289,6 +499,7 @@ const AuditPage = () => {
         return [
           item.userName || `#${item.userId}`,
           item.userEmail !== item.userName && item.userEmail,
+          attributes.actor && `pedido por ${attributes.actor}`,
         ]
           .filter(Boolean)
           .join(' — ');
@@ -316,29 +527,10 @@ const AuditPage = () => {
         }
         return parts.join(' ');
       }
-      case 'detail': {
-        if (item.actionType === 'command') {
-          if (!attributes.commandType) {
-            return 'No registrado (comando anterior a esta versión)';
-          }
-          const parts = [commandLabel(item)];
-          if (attributes.sms) {
-            parts.push('Por SMS');
-          }
-          if (attributes.status === 'queued') {
-            parts.push(
-              item.queuedSentTime
-                ? `Quedó en cola; se entregó ${formatTime(item.queuedSentTime, 'minutes')}`
-                : 'En cola: el equipo no estaba conectado y aún no se ha entregado',
-            );
-          }
-          if (attributes.status === 'failed') {
-            parts.push(`No se pudo enviar${attributes.error ? `: ${attributes.error}` : ''}`);
-          }
-          return parts.join(' — ');
-        }
-        return renderDetail(item);
-      }
+      case 'detail':
+        return detailLines(item)
+          .map(([text]) => text)
+          .join(' — ');
       case 'result':
         if (item.commandResult != null) {
           return `${item.commandResult} (${formatTime(item.commandResultTime)})`;
@@ -365,8 +557,14 @@ const AuditPage = () => {
     await exportExcel(t('reportAudit'), 'auditoria.xlsx', new Map([['Auditoría', rows]]), theme);
   });
 
-  const selectedUsers = users.filter((user) => userIds.includes(user.id));
-  const selectedDevices = deviceList.filter((device) => deviceIds.includes(device.id));
+  const selectedUsers = useMemo(
+    () => users.filter((user) => userIds.includes(user.id)),
+    [users, userIds],
+  );
+  const selectedDevices = useMemo(
+    () => deviceList.filter((device) => deviceIds.includes(device.id)),
+    [deviceList, deviceIds],
+  );
 
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportAudit']}>
