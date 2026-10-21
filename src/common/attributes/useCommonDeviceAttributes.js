@@ -16,6 +16,10 @@ export default (t) =>
         name: t('attributeFuelIncreaseThreshold'),
         type: 'number',
       },
+      lowVoltageThreshold: {
+        name: 'Umbral de voltaje bajo en V (11.5 si no se pone; 0 = sin alarma)',
+        type: 'number',
+      },
       'report.ignoreOdometer': {
         name: t('attributeReportIgnoreOdometer'),
         type: 'boolean',

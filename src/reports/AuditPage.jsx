@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import {
+  Alert,
   Autocomplete,
   Box,
+  Link,
   ListItemText,
   Skeleton,
   Table,
@@ -18,7 +20,7 @@ import {
 } from '@mui/material';
 import { formatTime } from '../common/util/formatter';
 import { prefixString } from '../common/util/stringUtils';
-import { useTranslation } from '../common/components/LocalizationProvider';
+import { useTranslation, useTranslationKeys } from '../common/components/LocalizationProvider';
 import PageLayout from '../common/components/PageLayout';
 import ReportsMenu from './components/ReportsMenu';
 import ReportFilter, { updateReportParams } from './components/ReportFilter';
@@ -42,6 +44,7 @@ const columnsArray = [
 const columnsMap = new Map(columnsArray);
 
 const actionTypes = [
+  ['event', 'Evento del equipo'],
   ['command', 'Comando'],
   ['login', 'Inicio de sesión'],
   ['logout', 'Cierre de sesión'],
@@ -133,6 +136,99 @@ const fieldValue = (value) => {
   return String(value);
 };
 
+// Lo que manda o detecta el GPS (tc_events). Los primeros son los que más se buscan.
+const eventTypes = [
+  ['geofenceEnter', 'Entró a geocerca'],
+  ['geofenceExit', 'Salió de geocerca'],
+  ['deviceOffline', 'Se desconectó (fuera de línea)'],
+  ['deviceOnline', 'Se conectó (en línea)'],
+  ['deviceUnknown', 'Dejó de reportar (desconocido)'],
+  ['deviceInactive', 'Inactivo mucho tiempo'],
+  ['alarm', 'Alarma (todas)'],
+  ['deviceOverspeed', 'Exceso de velocidad'],
+  ['ignitionOn', 'Encendió el motor'],
+  ['ignitionOff', 'Apagó el motor'],
+  ['deviceMoving', 'Empezó a moverse'],
+  ['deviceStopped', 'Se detuvo'],
+  ['commandResult', 'Respuesta a un comando'],
+  ['queuedCommandSent', 'Recibió un comando que estaba en cola'],
+  ['driverChanged', 'Cambió el conductor'],
+  ['maintenance', 'Mantenimiento requerido'],
+  ['deviceFuelDrop', 'Bajó el combustible'],
+  ['deviceFuelIncrease', 'Subió el combustible'],
+  ['media', 'Envió foto / video / audio'],
+];
+const eventTypeMap = new Map(eventTypes);
+
+// Las que el texto de la traducción no deja claro; las demás usan la traducción de Traccar.
+const alarmLabels = {
+  powerCut: 'Energía desconectada (le cortaron la batería del vehículo)',
+  powerRestored: 'Energía restaurada',
+  lowBattery: 'Batería interna del GPS baja',
+  lowPower: 'Voltaje bajo (batería del vehículo)',
+  powerOff: 'GPS apagado',
+  powerOn: 'GPS encendido',
+  removing: 'GPS retirado / desmontado',
+  tampering: 'Manipulación del GPS',
+  gpsAntennaCut: 'Antena GPS cortada',
+  jamming: 'Interferencia de señal (inhibidor)',
+  sos: 'Botón de pánico (SOS)',
+  tow: 'Remolque / grúa',
+  overspeed: 'Exceso de velocidad (avisado por el GPS)',
+  geofenceEnter: 'Entró a geocerca (avisado por el GPS)',
+  geofenceExit: 'Salió de geocerca (avisado por el GPS)',
+  lowVoltage: 'Voltaje bajo (medido por la plataforma)',
+  powerDisconnected: 'Batería desconectada (medida por la plataforma)',
+  powerReconnected: 'Batería reconectada (medida por la plataforma)',
+};
+// Van primero en el filtro, después de "Alarma (todas)".
+const mainAlarms = [
+  'powerCut',
+  'powerDisconnected',
+  'powerRestored',
+  'powerReconnected',
+  'lowBattery',
+  'lowPower',
+  'lowVoltage',
+  'removing',
+  'sos',
+];
+
+const knotsToKph = (knots) => Math.round(Number(knots) * 1.852);
+
+const channelLabels = {
+  mail: 'correo',
+  whatsapp: 'WhatsApp',
+  sms: 'SMS',
+  web: 'en la plataforma',
+  firebase: 'app del teléfono',
+  traccar: 'app Traccar',
+  telegram: 'Telegram',
+  pushover: 'Pushover',
+  command: 'comando automático',
+};
+
+const deliveryText = ({ channel, status, error }) => {
+  const name = channelLabels[channel] || channel;
+  switch (status) {
+    case 'sent':
+      return `${name} enviado`;
+    case 'failed':
+      if (error && error.startsWith('Failed to get notificator')) {
+        return `${name} FALLÓ (ese canal no está habilitado en el servidor)`;
+      }
+      return `${name} FALLÓ${error ? ` (${error})` : ''}`;
+    case 'noPhone':
+      return `${name} no salió: la cuenta no tiene teléfono`;
+    case 'noApp':
+      return `${name} no salió: no tiene la app instalada`;
+    case 'blocked':
+      return 'avisos bloqueados para esta cuenta en el servidor';
+    default:
+      return `${name}: ${status}`;
+  }
+};
+
 const serverOperations = {
   reboot: 'Reinició el servidor',
   gc: 'Liberó memoria del servidor',
@@ -182,6 +278,31 @@ const AuditPage = () => {
     [deviceIdsKey],
   );
   const selectedTypes = useMemo(() => (typesKey ? typesKey.split(',') : []), [typesKey]);
+  const eventTypesKey = searchParams.getAll('eventType').join(',');
+  const selectedEventTypes = useMemo(
+    () => (eventTypesKey ? eventTypesKey.split(',') : []),
+    [eventTypesKey],
+  );
+
+  // Las alarmas salen de las traducciones (alarmPowerCut → alarm:powerCut), como en Notificaciones.
+  const alarmKeysText = useTranslationKeys((key) => key.startsWith('alarm')).join(',');
+  const eventOptions = useMemo(() => {
+    const alarms = alarmKeysText
+      .split(',')
+      .filter(Boolean)
+      .map((key) => key.charAt(5).toLowerCase() + key.slice(6));
+    const sorted = [
+      ...mainAlarms.filter((alarm) => alarms.includes(alarm)),
+      ...alarms.filter((alarm) => !mainAlarms.includes(alarm)).sort(),
+    ];
+    const keys = eventTypes.map(([key]) => key);
+    const index = keys.indexOf('alarm');
+    return [
+      ...keys.slice(0, index + 1),
+      ...sorted.map((alarm) => `alarm:${alarm}`),
+      ...keys.slice(index + 1),
+    ];
+  }, [alarmKeysText]);
 
   const [columns, setColumns] = usePersistedState('auditColumnsV2', [
     'actionTime',
@@ -192,6 +313,7 @@ const AuditPage = () => {
     'result',
   ]);
   const [items, setItems] = useState([]);
+  const [eventsTruncated, setEventsTruncated] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const onShow = useCatch(async ({ from, to }) => {
@@ -201,7 +323,9 @@ const AuditPage = () => {
       userIds.forEach((id) => query.append('userId', id));
       deviceIds.forEach((id) => query.append('deviceId', id));
       selectedTypes.forEach((type) => query.append('actionType', type));
+      selectedEventTypes.forEach((type) => query.append('eventType', type));
       const response = await fetchOrThrow(`/api/audit?${query.toString()}`);
+      setEventsTruncated(Number(response.headers.get('X-Audit-Events-Truncated')) || 0);
       setItems(await response.json());
     } finally {
       setLoading(false);
@@ -209,6 +333,14 @@ const AuditPage = () => {
   });
 
   const translated = (key, fallback) => t(key) || fallback;
+
+  const alarmLabel = (alarm) =>
+    alarmLabels[alarm] || translated(prefixString('alarm', alarm || ''), alarm || '');
+
+  const eventOptionLabel = (key) =>
+    key.startsWith('alarm:')
+      ? `Alarma: ${alarmLabel(key.slice(6))}`
+      : eventTypeMap.get(key) || translated(prefixString('event', key), key);
 
   const commandLabel = (item) => {
     const type = item.attributes.commandType;
@@ -231,7 +363,9 @@ const AuditPage = () => {
       return '';
     }
     const typeLabel = objectTypeLabels[item.objectType] || item.objectType;
-    const name = item.objectName || `#${item.objectId}`;
+    const name =
+      item.objectName ||
+      (item.objectType === 'token' ? 'de acceso (enlace o app)' : `#${item.objectId}`);
     const owner = item.attributes.ownerType
       ? `${objectTypeLabels[item.attributes.ownerType] || item.attributes.ownerType}: ${
           item.ownerName || `#${item.attributes.ownerId}`
@@ -258,10 +392,107 @@ const AuditPage = () => {
 
   // Cada renglón es [texto, tono]: 'main' en letra normal, 'note' en gris, 'error' en rojo.
   // La pantalla y el Excel salen de aquí mismo.
+  const eventLines = (attributes) => {
+    const type = attributes.eventType;
+    const lines = [];
+    if (type === 'alarm') {
+      lines.push([`Alarma: ${alarmLabel(attributes.alarm)}`, 'main']);
+    } else {
+      lines.push([eventTypeMap.get(type) || translated(prefixString('event', type), type), 'main']);
+    }
+    switch (type) {
+      case 'geofenceEnter':
+      case 'geofenceExit':
+        lines.push([`Geocerca: ${attributes.geofenceName || `#${attributes.geofenceId}`}`, 'note']);
+        break;
+      case 'deviceOverspeed':
+        if (attributes.speed != null) {
+          lines.push([
+            `${knotsToKph(attributes.speed)} km/h${
+              attributes.speedLimit ? ` (límite ${knotsToKph(attributes.speedLimit)} km/h)` : ''
+            }`,
+            'note',
+          ]);
+        }
+        break;
+      case 'commandResult':
+        if (attributes.result) {
+          lines.push([attributes.result, 'note']);
+        }
+        break;
+      case 'driverChanged':
+        if (attributes.driverUniqueId) {
+          lines.push([
+            attributes.driverName
+              ? `${attributes.driverName} (${attributes.driverUniqueId})`
+              : `Tarjeta ${attributes.driverUniqueId} (sin conductor registrado)`,
+            'note',
+          ]);
+        }
+        break;
+      case 'maintenance':
+        if (attributes.maintenanceName) {
+          lines.push([attributes.maintenanceName, 'note']);
+        }
+        break;
+      case 'deviceFuelDrop':
+      case 'deviceFuelIncrease':
+        if (attributes.before != null) {
+          lines.push([`${attributes.before} → ${attributes.after}`, 'note']);
+        }
+        break;
+      case 'deviceInactive':
+        if (attributes.lastUpdate) {
+          lines.push([`Último reporte: ${formatTime(attributes.lastUpdate, 'minutes')}`, 'note']);
+        }
+        break;
+      case 'media':
+        if (attributes.media) {
+          lines.push([attributes.media, 'note']);
+        }
+        break;
+      default:
+        break;
+    }
+    if (type === 'alarm' && attributes.power != null) {
+      lines.push([
+        `Voltaje: ${attributes.power} V${
+          attributes.threshold ? ` (alarma bajo ${attributes.threshold} V)` : ''
+        }`,
+        'note',
+      ]);
+    }
+    // Una línea por cuenta avisada, con lo que pasó en cada canal.
+    const byUser = new Map();
+    (attributes.notified || []).forEach((delivery) => {
+      const key = delivery.userId;
+      if (!byUser.has(key)) {
+        byUser.set(key, { name: delivery.name || `#${delivery.userId}`, items: [] });
+      }
+      byUser.get(key).items.push(delivery);
+    });
+    byUser.forEach(({ name, items }) => {
+      const failed = items.some((delivery) => delivery.status !== 'sent');
+      lines.push([
+        `Aviso a ${name}: ${items.map(deliveryText).join(', ')}`,
+        failed ? 'error' : 'note',
+      ]);
+    });
+    if (attributes.notifiedOmitted) {
+      lines.push([
+        `y ${attributes.notifiedOmitted} aviso(s) más que no cupieron en el registro`,
+        'note',
+      ]);
+    }
+    return lines;
+  };
+
   const detailLines = (item) => {
     const { attributes } = item;
     const lines = [];
     switch (item.actionType) {
+      case 'event':
+        return eventLines(attributes);
       case 'command': {
         if (!attributes.commandType) {
           return [['No registrado (comando anterior a esta versión)', 'note']];
@@ -405,16 +636,29 @@ const AuditPage = () => {
     if (!lines.length) {
       return '';
     }
-    return lines.map(([text, tone]) => (
-      <Typography
-        key={text}
-        variant={tone === 'main' ? 'body2' : 'caption'}
-        color={toneColor[tone]}
-        display="block"
-      >
-        {text}
-      </Typography>
-    ));
+    return (
+      <>
+        {lines.map(([text, tone]) => (
+          <Typography
+            key={text}
+            variant={tone === 'main' ? 'body2' : 'caption'}
+            color={toneColor[tone]}
+            display="block"
+          >
+            {text}
+          </Typography>
+        ))}
+        {item.actionType === 'event' && item.attributes.positionId && (
+          <Link
+            variant="caption"
+            component={RouterLink}
+            to={`/position/${item.attributes.positionId}`}
+          >
+            Ver ubicación
+          </Link>
+        )}
+      </>
+    );
   };
 
   const renderResult = (item) => {
@@ -455,6 +699,13 @@ const AuditPage = () => {
       case 'actionTime':
         return formatTime(item.actionTime, 'minutes');
       case 'user':
+        if (item.actionType === 'event') {
+          return (
+            <Typography variant="body2" color="textSecondary">
+              El GPS (automático)
+            </Typography>
+          );
+        }
         if (!item.userId) {
           return '';
         }
@@ -493,6 +744,9 @@ const AuditPage = () => {
       case 'actionTime':
         return formatTime(item.actionTime, 'minutes');
       case 'user':
+        if (item.actionType === 'event') {
+          return 'El GPS (automático)';
+        }
         if (!item.userId) {
           return '';
         }
@@ -509,7 +763,9 @@ const AuditPage = () => {
         if (!item.objectType) {
           return '';
         }
-        const name = item.objectName || `#${item.objectId}`;
+        const name =
+          item.objectName ||
+          (item.objectType === 'token' ? 'de acceso (enlace o app)' : `#${item.objectId}`);
         const parts = [
           item.objectType === 'device'
             ? name
@@ -662,6 +918,27 @@ const AuditPage = () => {
               )}
             />
           </div>
+          <div className={classes.filterItem}>
+            <Autocomplete
+              multiple
+              size="small"
+              options={eventOptions}
+              value={selectedEventTypes}
+              onChange={(_, value) =>
+                updateReportParams(searchParams, setSearchParams, 'eventType', value)
+              }
+              getOptionLabel={eventOptionLabel}
+              disableCloseOnSelect
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Eventos del equipo"
+                  placeholder={selectedEventTypes.length ? undefined : 'Todos'}
+                  helperText="Geocercas, alarmas, desconexión… Si solo elige eventos, salen solo eventos"
+                />
+              )}
+            />
+          </div>
           <ColumnSelect
             columns={columns}
             setColumns={setColumns}
@@ -670,6 +947,13 @@ const AuditPage = () => {
           />
         </ReportFilter>
       </div>
+      {eventsTruncated > 0 && !loading && (
+        <Alert severity="warning" sx={{ mx: 2, mb: 1 }}>
+          Hay más eventos del equipo de los que se pueden mostrar: aparecen solo los primeros{' '}
+          {eventsTruncated.toLocaleString()}. Acorte las fechas o elija vehículos, clientes o tipos
+          de evento para verlos todos.
+        </Alert>
+      )}
       {narrow ? (
         <Box>
           {!loading
