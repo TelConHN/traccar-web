@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -14,6 +15,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { formatNotificationTitle, formatTime } from '../common/util/formatter';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import { eventsActions } from '../store';
+import { useEffectAsync } from '../reactHelper';
 
 const useStyles = makeStyles()((theme) => ({
   drawer: {
@@ -37,6 +39,39 @@ const EventsDrawer = ({ open, onClose }) => {
   const devices = useSelector((state) => state.devices.items);
 
   const events = useSelector((state) => state.events.items);
+
+  // Un evento puede ser de un carro que no está en la lista cargada (borrado, desvinculado o de los
+  // guardados de otro día): antes salía "undefined". Se busca su nombre una vez.
+  const [extraNames, setExtraNames] = useState({});
+  const missingKey = [
+    ...new Set(events.map((event) => event.deviceId).filter((id) => !devices[id])),
+  ].join(',');
+  useEffectAsync(async () => {
+    const ids = missingKey ? missingKey.split(',').filter((id) => !(id in extraNames)) : [];
+    if (!ids.length) {
+      return;
+    }
+    const names = {};
+    ids.forEach((id) => {
+      names[id] = null;
+    });
+    try {
+      const query = new URLSearchParams();
+      ids.forEach((id) => query.append('id', id));
+      const response = await fetch(`/api/devices?${query.toString()}`);
+      if (response.ok) {
+        (await response.json()).forEach((device) => {
+          names[device.id] = device.name;
+        });
+      }
+    } catch {
+      // queda el texto genérico
+    }
+    setExtraNames((current) => ({ ...current, ...names }));
+  }, [missingKey]);
+
+  const deviceName = (deviceId) =>
+    devices[deviceId]?.name || extraNames[deviceId] || `Vehículo #${deviceId}`;
 
   const formatType = (event) =>
     formatNotificationTitle(t, {
@@ -68,7 +103,7 @@ const EventsDrawer = ({ open, onClose }) => {
             disabled={!event.id}
           >
             <ListItemText
-              primary={`${devices[event.deviceId]?.name} • ${formatType(event)}`}
+              primary={`${deviceName(event.deviceId)} • ${formatType(event)}`}
               secondary={formatTime(event.eventTime, 'seconds')}
             />
             <IconButton

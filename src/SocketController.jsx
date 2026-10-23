@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useDispatch, useSelector, connect } from 'react-redux';
+import { useDispatch, useSelector, useStore, connect } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Snackbar } from '@mui/material';
 import { devicesActions, sessionActions } from './store';
@@ -16,12 +16,15 @@ import {
 import fetchOrThrow from './common/util/fetchOrThrow';
 
 const logoutCode = 4000;
+const eventsKeepMs = 7 * 24 * 3600 * 1000;
 
 const SocketController = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  const store = useStore();
   const authenticated = useSelector((state) => Boolean(state.session.user));
+  const userId = useSelector((state) => state.session.user?.id);
   const includeLogs = useSelector((state) => state.session.includeLogs);
 
   const socketRef = useRef();
@@ -125,6 +128,42 @@ const SocketController = () => {
   useEffect(() => {
     socketRef.current?.send(JSON.stringify({ logs: includeLogs }));
   }, [includeLogs]);
+
+  // La lista de Eventos vivía solo en memoria: se vaciaba sola cada vez que la página se recargaba
+  // (el navegador recarga las pestañas que estuvieron mucho en segundo plano y la app del teléfono
+  // al volver a abrirla). Ahora queda en este navegador, por cuenta, hasta que la persona la borre.
+  useEffect(() => {
+    if (!userId) {
+      return undefined;
+    }
+    const key = `events.${userId}`;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(key));
+      if (Array.isArray(saved)) {
+        const since = Date.now() - eventsKeepMs;
+        dispatch(
+          eventsActions.load([
+            ...store.getState().events.items,
+            ...saved.filter((event) => new Date(event.eventTime).getTime() > since),
+          ]),
+        );
+      }
+    } catch {
+      // sin almacenamiento del navegador la lista sigue funcionando, solo no se guarda
+    }
+    let saved = store.getState().events.items;
+    return store.subscribe(() => {
+      const { items } = store.getState().events;
+      if (items !== saved) {
+        saved = items;
+        try {
+          window.localStorage.setItem(key, JSON.stringify(items));
+        } catch {
+          // lleno o bloqueado: se queda solo en memoria
+        }
+      }
+    });
+  }, [userId, dispatch, store]);
 
   useEffectAsync(async () => {
     if (authenticated) {

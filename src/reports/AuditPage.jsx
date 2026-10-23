@@ -5,6 +5,7 @@ import {
   Alert,
   Autocomplete,
   Box,
+  Chip,
   Link,
   ListItemText,
   Skeleton,
@@ -737,6 +738,106 @@ const AuditPage = () => {
     }
   };
 
+  // En el teléfono cada registro se lee de arriba abajo: de qué tipo es (color), qué pasó en letra
+  // grande y debajo quién, sobre qué y el detalle, con la etiqueta al lado del dato. Antes era
+  // «hora · acción» y debajo bloques sueltos con el título encima, que costaba relacionar.
+  const cardKind = (item) => {
+    switch (item.actionType) {
+      case 'event':
+        return ['Evento del GPS', 'warning'];
+      case 'command':
+      case 'speedLimit':
+        return ['Comando', 'primary'];
+      case 'denied':
+        return ['Acceso', 'error'];
+      case 'login':
+      case 'logout':
+      case 'passwordReset':
+      case 'passwordUpdate':
+        return ['Acceso', 'default'];
+      default:
+        return ['Cambio', 'info'];
+    }
+  };
+
+  const cardRow = (label, value) => (
+    <Box key={label} sx={{ display: 'flex', gap: 1.5, mt: 0.75 }}>
+      <Typography variant="body2" color="textSecondary" sx={{ flexShrink: 0, width: 76 }}>
+        {label}
+      </Typography>
+      <Box sx={{ minWidth: 0, flexGrow: 1, wordBreak: 'break-word' }}>{value}</Box>
+    </Box>
+  );
+
+  const renderCard = (item) => {
+    const [kind, kindColor] = cardKind(item);
+    const isEvent = item.actionType === 'event';
+    const lines = columns.includes('detail') ? detailLines(item) : [];
+    // En un evento el primer renglón del detalle («Encendió el motor») es lo que pasó.
+    const title = isEvent
+      ? (lines[0] || detailLines(item)[0] || [''])[0]
+      : actionTypeMap.get(item.actionType) || item.actionType;
+    const rest = isEvent ? lines.slice(1) : lines;
+    const rows = [];
+    if (columns.includes('user') && !isEvent) {
+      const who = renderCell(item, 'user');
+      if (who) {
+        rows.push(cardRow('Quién', who));
+      }
+    }
+    if (columns.includes('object') && item.objectType) {
+      rows.push(cardRow(item.objectType === 'device' ? 'Vehículo' : 'Sobre', renderObject(item)));
+    }
+    if (rest.length || (isEvent && item.attributes.positionId && columns.includes('detail'))) {
+      rows.push(
+        cardRow(
+          'Detalle',
+          <>
+            {rest.map(([text, tone]) => (
+              <Typography key={text} variant="body2" color={toneColor[tone]} display="block">
+                {text}
+              </Typography>
+            ))}
+            {isEvent && item.attributes.positionId && (
+              <Link
+                variant="body2"
+                component={RouterLink}
+                to={`/position/${item.attributes.positionId}`}
+              >
+                Ver ubicación
+              </Link>
+            )}
+          </>,
+        ),
+      );
+    }
+    if (columns.includes('result') && item.actionType === 'command') {
+      const result = renderResult(item);
+      if (result) {
+        rows.push(cardRow('Respuesta', result));
+      }
+    }
+    if (columns.includes('address') && item.address) {
+      rows.push(cardRow('IP', item.address));
+    }
+    return (
+      <Box key={item.id} sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Chip size="small" label={kind} color={kindColor} variant="outlined" />
+          {columns.includes('actionTime') && (
+            <Typography variant="body2" color="textSecondary" sx={{ ml: 'auto' }}>
+              {formatTime(item.actionTime, 'minutes')}
+            </Typography>
+          )}
+        </Box>
+        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mt: 0.75, lineHeight: 1.3 }}>
+          {title}
+        </Typography>
+        {rows}
+      </Box>
+    );
+  };
+
   // Lo mismo que se ve en pantalla, pero en texto plano para Excel.
   const textCell = (item, key) => {
     const { attributes } = item;
@@ -866,7 +967,7 @@ const AuditPage = () => {
                   {...params}
                   label="Clientes / cuentas"
                   placeholder={selectedUsers.length ? undefined : 'Todas'}
-                  helperText="Lo que hizo la cuenta y lo que se hizo a sus carros"
+                  helperText="Lo que hizo la cuenta, lo que se hizo a sus carros y los eventos de sus carros"
                 />
               )}
             />
@@ -957,31 +1058,7 @@ const AuditPage = () => {
       {narrow ? (
         <Box>
           {!loading
-            ? items.map((item) => (
-                <Box key={item.id} sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-                  <Typography variant="subtitle2">
-                    {columns.includes('actionTime') && formatTime(item.actionTime, 'minutes')}
-                    {columns.includes('actionTime') && columns.includes('actionType') && ' · '}
-                    {columns.includes('actionType') && renderCell(item, 'actionType')}
-                  </Typography>
-                  {columns
-                    .filter((key) => key !== 'actionTime' && key !== 'actionType')
-                    .map((key) => {
-                      const value = renderCell(item, key);
-                      if (value === '' || value == null) {
-                        return null;
-                      }
-                      return (
-                        <Box key={key} sx={{ mt: 1 }}>
-                          <Typography variant="caption" color="textSecondary">
-                            {columnsMap.get(key)}
-                          </Typography>
-                          <Box sx={{ wordBreak: 'break-word' }}>{value}</Box>
-                        </Box>
-                      );
-                    })}
-                </Box>
-              ))
+            ? items.map((item) => renderCard(item))
             : [0, 1, 2].map((index) => (
                 <Box key={index} sx={{ px: 2, py: 1.5 }}>
                   <Skeleton />
