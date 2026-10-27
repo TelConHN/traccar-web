@@ -30,3 +30,22 @@ export const useRestriction = (key) =>
     const userValue = state.session.user[key];
     return !admin && (serverValue || userValue);
   });
+
+// Reportes habilitados para la cuenta. Es la misma regla del servidor (ClientRestrictions): sin
+// el atributo, que nunca se configuró, solo el recorrido; el servidor rechaza los demás.
+export const allowedReportKeys = (user) => {
+  const value = user?.attributes?.allowedReports;
+  if (value == null) {
+    return ['replay'];
+  }
+  return String(value).split(',').filter(Boolean);
+};
+
+export const useReportAllowed = (key) =>
+  useSelector((state) => {
+    const { user, server } = state.session;
+    if (user.administrator) {
+      return true;
+    }
+    return !user.disableReports && !server.disableReports && allowedReportKeys(user).includes(key);
+  });

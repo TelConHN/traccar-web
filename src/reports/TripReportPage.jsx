@@ -16,7 +16,7 @@ import {
   formatNumericHours,
 } from '../common/util/formatter';
 import ReportFilter from './components/ReportFilter';
-import { useAdministrator } from '../common/util/permissions';
+import { useAdministrator, useReportAllowed } from '../common/util/permissions';
 import { useAttributePreference, usePreference } from '../common/util/preferences';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import PageLayout from '../common/components/PageLayout';
@@ -166,6 +166,9 @@ const TripReportPage = () => {
     navigate('/reports/scheduled');
   });
 
+  // Sin el recorrido habilitado el servidor lo rechaza: no se ofrece el botón.
+  const replayAllowed = useReportAllowed('replay');
+
   const navigateToReplay = (item) => {
     navigate({
       pathname: '/replay',
@@ -272,9 +275,11 @@ const TripReportPage = () => {
                             <LocationSearchingIcon fontSize="small" />
                           </IconButton>
                         )}
-                        <IconButton size="small" onClick={() => navigateToReplay(item)}>
-                          <RouteIcon fontSize="small" />
-                        </IconButton>
+                        {replayAllowed && (
+                          <IconButton size="small" onClick={() => navigateToReplay(item)}>
+                            <RouteIcon fontSize="small" />
+                          </IconButton>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>{devices[item.deviceId].name}</TableCell>

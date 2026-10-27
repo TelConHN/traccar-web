@@ -21,7 +21,7 @@ import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
 
 import { sessionActions } from '../../store';
 import { useTranslation } from './LocalizationProvider';
-import { useAdministrator, useRestriction } from '../util/permissions';
+import { allowedReportKeys, useAdministrator, useRestriction } from '../util/permissions';
 import { nativePostMessage } from './NativeInterface';
 
 const BottomMenu = () => {
@@ -37,10 +37,10 @@ const BottomMenu = () => {
   const user = useSelector((state) => state.session.user);
   const socket = useSelector((state) => state.session.socket);
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
-  const allowedReports = useSelector((state) => {
-    const raw = state.session.user.attributes?.allowedReports || '';
-    return raw.split(',').filter(Boolean);
-  });
+  const reportsDisabled = useRestriction('disableReports');
+  // Lo mismo que acepta el servidor; sin ninguno habilitado no se muestra la pestaña Reportes
+  // (antes llevaba al recorrido aunque no lo tuviera).
+  const allowedReports = reportsDisabled ? [] : allowedReportKeys(user);
 
   const reportRouteMap = {
     combined: '/reports/combined',
@@ -219,7 +219,7 @@ const BottomMenu = () => {
             sx={accion}
           />
         )}
-        {!esConductor && (
+        {!esConductor && (admin || allowedReports.length > 0) && (
           <BottomNavigationAction
             label={t('reportTitle')}
             icon={<DescriptionIcon />}

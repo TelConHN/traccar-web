@@ -21,6 +21,7 @@ import {
   DialogContent,
   DialogActions,
   Alert,
+  Divider,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
@@ -35,7 +36,12 @@ import { sessionActions } from '../store';
 import SelectField from '../common/components/SelectField';
 import SettingsMenu from './components/SettingsMenu';
 import useCommonUserAttributes from '../common/attributes/useCommonUserAttributes';
-import { useAdministrator, useRestriction, useManager } from '../common/util/permissions';
+import {
+  allowedReportKeys,
+  useAdministrator,
+  useRestriction,
+  useManager,
+} from '../common/util/permissions';
 import { useCatch } from '../reactHelper';
 import useMapStyles from '../map/core/useMapStyles';
 import { map } from '../map/core/MapView';
@@ -127,6 +133,35 @@ const UserPage = () => {
     item.email &&
     (item.id || item.password) &&
     (admin || !totpForce || item.totpKey);
+
+  // Reportes que ve una cuenta que no es administradora (el menú Reportes los filtra con esto).
+  const reportOptions = [
+    { key: 'combined', label: t('reportCombined') },
+    { key: 'events', label: t('reportEvents') },
+    { key: 'geofences', label: t('sharedGeofences') },
+    { key: 'trips', label: t('reportTrips') },
+    { key: 'stops', label: t('reportStops') },
+    { key: 'summary', label: t('reportSummary') },
+    { key: 'chart', label: t('reportChart') },
+    { key: 'replay', label: t('reportReplay') },
+    { key: 'route', label: t('reportPositions') },
+    { key: 'logs', label: t('sharedLogs') },
+    { key: 'scheduled', label: t('reportScheduled') },
+  ];
+  const allowedReports = allowedReportKeys(item);
+  const reportsConfigured = item?.attributes?.allowedReports != null;
+  const setAllowedReports = (keys) =>
+    setItem({
+      ...item,
+      attributes: {
+        ...item.attributes,
+        // En el orden del menú, sin repetidos.
+        allowedReports: reportOptions
+          .map(({ key }) => key)
+          .filter((key) => keys.includes(key))
+          .join(','),
+      },
+    });
 
   return (
     <EditItemView
@@ -511,46 +546,58 @@ const UserPage = () => {
                 <Typography variant="subtitle1">{t('userReportPermissions')}</Typography>
               </AccordionSummary>
               <AccordionDetails className={classes.details}>
-                {[
-                  { key: 'combined', label: t('reportCombined') },
-                  { key: 'events', label: t('reportEvents') },
-                  { key: 'geofences', label: t('sharedGeofences') },
-                  { key: 'trips', label: t('reportTrips') },
-                  { key: 'stops', label: t('reportStops') },
-                  { key: 'summary', label: t('reportSummary') },
-                  { key: 'chart', label: t('reportChart') },
-                  { key: 'replay', label: t('reportReplay') },
-                  { key: 'route', label: t('reportPositions') },
-                  { key: 'logs', label: t('sharedLogs') },
-                  { key: 'scheduled', label: t('reportScheduled') },
-                ].map(({ key, label }) => {
-                  const allowed = (item.attributes?.allowedReports || '').split(',').filter(Boolean);
-                  const checked = allowed.includes(key);
-                  return (
-                    <FormControlLabel
-                      key={key}
-                      control={
-                        <Checkbox
-                          checked={checked}
-                          onChange={(e) => {
-                            const current = (item.attributes?.allowedReports || '').split(',').filter(Boolean);
-                            const updated = e.target.checked
-                              ? [...current, key]
-                              : current.filter((r) => r !== key);
-                            setItem({
-                              ...item,
-                              attributes: {
-                                ...item.attributes,
-                                allowedReports: updated.join(','),
-                              },
-                            });
-                          }}
-                        />
+                <Typography variant="body2" color="textSecondary">
+                  Solo puede abrir los reportes marcados; el servidor rechaza los demás aunque los
+                  pida por fuera de la aplicación. Si no marca ninguno, no ve reportes. Se guarda
+                  con el botón Guardar.
+                </Typography>
+                {!reportsConfigured && (
+                  <Alert severity="info">
+                    Esta cuenta nunca se configuró: por ahora solo tiene «{t('reportReplay')}», como
+                    hasta ahora.
+                  </Alert>
+                )}
+                {item.disableReports && (
+                  <Alert severity="warning">
+                    Esta cuenta tiene marcado «{t('userDisableReports')}» en Permisos: no puede
+                    abrir ningún reporte aunque los marque aquí. Desmárquelo para que sirvan.
+                  </Alert>
+                )}
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={allowedReports.length === reportOptions.length}
+                      indeterminate={
+                        allowedReports.length > 0 && allowedReports.length < reportOptions.length
                       }
-                      label={label}
+                      onChange={(e) =>
+                        setAllowedReports(
+                          e.target.checked ? reportOptions.map(({ key }) => key) : [],
+                        )
+                      }
                     />
-                  );
-                })}
+                  }
+                  label={<Typography sx={{ fontWeight: 'bold' }}>Todos los reportes</Typography>}
+                />
+                <Divider />
+                {reportOptions.map(({ key, label }) => (
+                  <FormControlLabel
+                    key={key}
+                    control={
+                      <Checkbox
+                        checked={allowedReports.includes(key)}
+                        onChange={(e) =>
+                          setAllowedReports(
+                            e.target.checked
+                              ? [...allowedReports, key]
+                              : allowedReports.filter((r) => r !== key),
+                          )
+                        }
+                      />
+                    }
+                    label={label}
+                  />
+                ))}
               </AccordionDetails>
             </Accordion>
           )}

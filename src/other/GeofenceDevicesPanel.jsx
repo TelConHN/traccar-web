@@ -19,8 +19,10 @@ import fetchOrThrow from '../common/util/fetchOrThrow';
 import {
   deviceClients,
   deviceLink,
+  filterUsers,
   geofenceClients,
   geofenceDeviceIds,
+  renderUserOption,
   userLabel,
 } from './geofenceAssignments';
 
@@ -29,6 +31,13 @@ const link = (geofenceId, deviceIds, method) =>
     method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(deviceIds.map((deviceId) => ({ deviceId, geofenceId }))),
+  });
+
+const linkUser = (userId, geofenceId) =>
+  fetchOrThrow('/api/permissions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, geofenceId }),
   });
 
 const unlinkUser = (userId, geofenceId) =>
@@ -51,6 +60,9 @@ const GeofenceDevicesPanel = ({
 }) => {
   const [busy, setBusy] = useState(false);
   const [removingClientId, setRemovingClientId] = useState(null);
+  // Cliente elegido en "Dar esta geocerca a otro cliente", esperando que se diga a qué carros.
+  const [newClient, setNewClient] = useState(null);
+  const [newClientAuto, setNewClientAuto] = useState(false);
 
   const setAuto = async (userId, enabled) => {
     const response = await fetchOrThrow(
@@ -203,6 +215,109 @@ const GeofenceDevicesPanel = ({
     );
   });
 
+  // Dar la geocerca a otro cliente: antes solo se podía agregar un carro suelto, y el cliente no la
+  // veía en su cuenta (el acceso es de la cuenta, no del carro). Primero se elige la cuenta y luego
+  // si va a todos sus carros o a algunos (esos se marcan en su sección, que aparece arriba).
+  const clientIds = clients.map((client) => client.id);
+  const newClientOptions = Object.values(data.users)
+    .filter((user) => !user.administrator && !clientIds.includes(user.id))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const newClientDevices = newClient
+    ? (data.userDevices[newClient.id] || []).filter((id) => data.devices[id])
+    : [];
+  const newClientMissing = newClientDevices.filter((id) => !deviceLink(data, geofence.id, id));
+  const giveToClient = (deviceIds) =>
+    run(async () => {
+      await linkUser(newClient.id, geofence.id);
+      if (deviceIds.length) {
+        await link(geofence.id, deviceIds, 'POST');
+      }
+      if (newClientAuto) {
+        await setAuto(newClient.id, true);
+      }
+      setNewClient(null);
+      setNewClientAuto(false);
+    });
+
+  const newClientSection = (
+    <Box sx={{ mt: 2, mb: 1 }}>
+      <Autocomplete
+        options={newClientOptions}
+        value={newClient}
+        disabled={busy}
+        onChange={(event, user) => {
+          setNewClient(user);
+          setNewClientAuto(false);
+        }}
+        getOptionLabel={(user) => user.name || ''}
+        filterOptions={filterUsers}
+        renderOption={(props, user) => renderUserOption(props, user)}
+        isOptionEqualToValue={(a, b) => a.id === b.id}
+        noOptionsText="Ningún cliente coincide"
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            size="small"
+            label="Dar esta geocerca a otro cliente"
+            helperText="Busca la cuenta por nombre o correo; la verá en su cuenta"
+          />
+        )}
+      />
+      {newClient && (
+        <Alert severity="info" icon={false} sx={{ mt: 1 }}>
+          <Typography variant="body2" gutterBottom>
+            {newClientDevices.length === 0
+              ? `${newClient.name} todavía no tiene carros. Verá la geocerca en su cuenta; los avisos llegan cuando la tenga algún carro suyo.`
+              : `¿A qué carros de ${newClient.name} se aplica? Los avisos de entrada y salida son solo de los carros que la tienen.`}
+          </Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={newClientAuto}
+                disabled={busy}
+                onChange={(event) => setNewClientAuto(event.target.checked)}
+              />
+            }
+            label={
+              <Typography variant="body2">Y a los carros nuevos que se le agreguen</Typography>
+            }
+          />
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+            {newClientMissing.length > 0 && (
+              <Button
+                size="small"
+                variant="contained"
+                disabled={busy}
+                onClick={() => giveToClient(newClientMissing)}
+              >
+                {newClientDevices.length === 1
+                  ? 'A su carro'
+                  : `A todos sus carros (${newClientDevices.length})`}
+              </Button>
+            )}
+            <Button
+              size="small"
+              variant={newClientMissing.length > 0 ? 'outlined' : 'contained'}
+              disabled={busy}
+              onClick={() => giveToClient([])}
+            >
+              {newClientDevices.length > 1 ? 'Elegir cuáles' : 'Solo darle acceso'}
+            </Button>
+            <Button size="small" disabled={busy} onClick={() => setNewClient(null)}>
+              Cancelar
+            </Button>
+          </Box>
+          {newClientDevices.length > 1 && (
+            <Typography variant="caption" color="textSecondary" display="block" sx={{ mt: 1 }}>
+              Con «Elegir cuáles», sus carros aparecen arriba con una casilla cada uno.
+            </Typography>
+          )}
+        </Alert>
+      )}
+    </Box>
+  );
+
   // Carros con la geocerca que no son de ningún cliente de arriba (p. ej. de Telcon u otro cliente).
   const others = geofenceDeviceIds(data, geofence.id).filter((id) => !shownDeviceIds.has(id));
 
@@ -228,11 +343,12 @@ const GeofenceDevicesPanel = ({
     <>
       {clients.length === 0 && (
         <Typography variant="body2" color="textSecondary">
-          Ningún cliente ve esta geocerca. Para dársela a uno, elige &quot;De un cliente&quot;
-          arriba y guarda.
+          Ningún cliente ve esta geocerca. Para dársela a uno, búscalo abajo en «Dar esta geocerca a
+          otro cliente».
         </Typography>
       )}
       {clientSections}
+      {newClientSection}
       {others.length > 0 && (
         <Box>
           <Typography variant="subtitle2">Otros carros con esta geocerca</Typography>
@@ -277,8 +393,8 @@ const GeofenceDevicesPanel = ({
           <TextField
             {...params}
             size="small"
-            label="Agregar otro carro"
-            helperText="Busca por nombre, IMEI o cliente"
+            label="Agregar un carro suelto"
+            helperText="Solo ese carro; su cliente no la verá en su cuenta. Busca por nombre, IMEI o cliente"
           />
         )}
       />

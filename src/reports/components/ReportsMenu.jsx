@@ -15,7 +15,7 @@ import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import { useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from '../../common/components/LocalizationProvider';
-import { useAdministrator, useRestriction } from '../../common/util/permissions';
+import { allowedReportKeys, useAdministrator, useRestriction } from '../../common/util/permissions';
 import MenuItem from '../../common/components/MenuItem';
 
 const ReportsMenu = () => {
@@ -24,10 +24,8 @@ const ReportsMenu = () => {
 
   const admin = useAdministrator();
   const readonly = useRestriction('readonly');
-  const allowedReports = useSelector((state) => {
-    const raw = state.session.user.attributes?.allowedReports || '';
-    return raw.split(',').filter(Boolean);
-  });
+  // Cada render arma la lista de nuevo: el selector devuelve el usuario, no un arreglo nuevo.
+  const allowedReports = allowedReportKeys(useSelector((state) => state.session.user));
 
   const canSee = (key) => admin || allowedReports.includes(key);
 

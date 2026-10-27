@@ -30,7 +30,12 @@ import PendingIcon from '@mui/icons-material/Pending';
 import { useTranslation } from './LocalizationProvider';
 import RemoveDialog from './RemoveDialog';
 import PositionValue from './PositionValue';
-import { useAdministrator, useDeviceReadonly, useRestriction } from '../util/permissions';
+import {
+  useAdministrator,
+  useDeviceReadonly,
+  useReportAllowed,
+  useRestriction,
+} from '../util/permissions';
 import usePositionAttributes from '../attributes/usePositionAttributes';
 import { devicesActions } from '../../store';
 import { useCatch, useCatchCallback } from '../../reactHelper';
@@ -127,6 +132,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
   const administrator = useAdministrator();
   const readonly = useRestriction('readonly');
   const deviceReadonly = useDeviceReadonly();
+  const replayAllowed = useReportAllowed('replay');
 
   const shareDisabled = useSelector((state) => state.session.server.attributes.disableShare);
   const user = useSelector((state) => state.session.user);
@@ -272,7 +278,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                 <Tooltip title={t('reportReplay')}>
                   <IconButton
                     onClick={() => navigate(`/replay?deviceId=${deviceId}`)}
-                    disabled={disableActions || !position}
+                    disabled={disableActions || !position || !replayAllowed}
                   >
                     <RouteIcon />
                   </IconButton>
