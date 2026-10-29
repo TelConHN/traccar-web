@@ -31,7 +31,11 @@ export default (
       return groupIds;
     };
 
+    // Un dispositivo deshabilitado es un vehículo dado de baja o un servicio terminado en el
+    // panel admin: no se muestra en el mapa ni en la lista. Sigue en Configuración →
+    // Dispositivos para poder habilitarlo otra vez.
     const filtered = Object.values(devices)
+      .filter((device) => !device.disabled)
       .filter((device) => !filter.statuses.length || filter.statuses.includes(device.status))
       .filter(
         (device) =>
@@ -71,7 +75,7 @@ export default (
     setFilteredPositions(
       filterMap
         ? filtered.map((device) => positions[device.id]).filter(Boolean)
-        : Object.values(positions),
+        : Object.values(positions).filter((position) => !devices[position.deviceId]?.disabled),
     );
   }, [
     keyword,
