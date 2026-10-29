@@ -35,11 +35,20 @@ const ReportFilter = ({ children, onShow, onExport, onSchedule, deviceType, load
 
   const readonly = useRestriction('readonly');
 
-  const devices = useSelector((state) => state.devices.items, deviceEquality(['id', 'name']));
+  const devices = useSelector(
+    (state) => state.devices.items,
+    deviceEquality(['id', 'name', 'disabled']),
+  );
   const groups = useSelector((state) => state.groups.items);
   const deviceList = useMemo(
-    () => Object.values(devices).sort((a, b) => a.name.localeCompare(b.name)),
-    [devices],
+    () =>
+      Object.values(devices)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        // Los archivados (dados de baja) siguen aquí para ver su recorrido, marcados.
+        .map((device) =>
+          device.disabled ? { ...device, name: `${device.name} (${t('deviceArchived')})` } : device,
+        ),
+    [devices, t],
   );
   const groupList = useMemo(
     () => Object.values(groups).sort((a, b) => a.name.localeCompare(b.name)),

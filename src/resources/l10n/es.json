@@ -223,6 +223,8 @@
     "deviceIdentifier": "Identificador",
     "deviceModel": "Modelo",
     "deviceSim": "SIM",
+    "deviceArchived": "Archivado",
+    "deviceShowArchived": "Mostrar archivados",
     "deviceContact": "Contacto",
     "deviceCategory": "Categoría",
     "deviceLastUpdate": "Última Actualización",

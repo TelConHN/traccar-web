@@ -221,6 +221,8 @@
     "deviceIdentifier": "Identifier",
     "deviceModel": "Model",
     "deviceSim": "SIM",
+    "deviceArchived": "Archived",
+    "deviceShowArchived": "Show archived",
     "deviceContact": "Contact",
     "deviceCategory": "Category",
     "deviceLastUpdate": "Last Update",

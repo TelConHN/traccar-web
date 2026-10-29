@@ -11,6 +11,7 @@ import {
   TableFooter,
   FormControlLabel,
   Switch,
+  Chip,
 } from '@mui/material';
 import LinkIcon from '@mui/icons-material/Link';
 import { useTheme } from '@mui/material/styles';
@@ -50,6 +51,9 @@ const DevicesPage = () => {
   const [items, setItems] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showAll, setShowAll] = usePersistedState('showAllDevices', false);
+  // Deshabilitado = vehículo dado de baja o servicio terminado en el panel admin. Se guarda por
+  // su recorrido, pero por defecto no se mezcla con los que trabajan.
+  const [showArchived, setShowArchived] = usePersistedState('showArchivedDevices', false);
   const [loading, setLoading] = useState(false);
 
   const loadItems = async (offset) => {
@@ -75,8 +79,10 @@ const DevicesPage = () => {
     await loadItems(0);
   }, [timestamp, showAll, searchKeyword]);
 
+  const visibleItems = showArchived ? items : items.filter((item) => !item.disabled);
+
   const handleExport = async () => {
-    const data = items.map((item) => ({
+    const data = visibleItems.map((item) => ({
       [t('sharedName')]: item.name,
       [t('deviceIdentifier')]: item.uniqueId,
       [t('groupParent')]: item.groupId ? groups[item.groupId]?.name : null,
@@ -121,9 +127,14 @@ const DevicesPage = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <TableRow key={item.id}>
-              <TableCell>{item.name}</TableCell>
+              <TableCell>
+                {item.name}
+                {item.disabled && (
+                  <Chip label={t('deviceArchived')} size="small" sx={{ ml: 1 }} />
+                )}
+              </TableCell>
               <TableCell>{item.uniqueId}</TableCell>
               <TableCell>{item.groupId ? groups[item.groupId]?.name : null}</TableCell>
               <TableCell>{item.phone}</TableCell>
@@ -166,6 +177,17 @@ const DevicesPage = () => {
               </Button>
             </TableCell>
             <TableCell colSpan={manager ? 9 : 8} align="right">
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={showArchived}
+                    onChange={(e) => setShowArchived(e.target.checked)}
+                    size="small"
+                  />
+                }
+                label={t('deviceShowArchived')}
+                labelPlacement="start"
+              />
               <FormControlLabel
                 control={
                   <Switch
