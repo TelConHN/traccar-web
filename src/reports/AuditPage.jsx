@@ -605,15 +605,19 @@ const AuditPage = () => {
         return lines;
       case 'passwordUpdate':
         return [['Cambió la contraseña con el enlace del correo', 'main']];
-      case 'message':
+      case 'message': {
+        // Los avisos de cobro del panel salen por acá: se nombra a quién le llegó, no solo cuántos.
+        const ids = (String(attributes.users || '').match(/\d+/g) || []).map(Number);
+        const nombres = ids.map((id) => users.find((u) => u.id === id)?.name || `cuenta ${id}`);
         return [
           [
-            `Por ${attributes.notificator} a ${attributes.recipients} cuenta(s)${
-              attributes.subject ? `: «${attributes.subject}»` : ''
-            }`,
+            `Por ${channelLabels[attributes.notificator] || attributes.notificator} a ${
+              nombres.length ? nombres.join(', ') : `${attributes.recipients} cuenta(s)`
+            }${attributes.subject ? `: «${attributes.subject}»` : ''}`,
             'main',
           ],
         ];
+      }
       case 'server':
         return [
           [
