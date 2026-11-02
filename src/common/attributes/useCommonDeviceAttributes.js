@@ -17,7 +17,7 @@ export default (t) =>
         type: 'number',
       },
       lowVoltageThreshold: {
-        name: 'Umbral de voltaje bajo en V (11.5 si no se pone; 0 = sin alarma)',
+        name: 'Umbral de voltaje bajo en V (11.5 si no se pone; camiones de 24 V: 23; 0 = sin alarma)',
         type: 'number',
       },
       'report.ignoreOdometer': {
