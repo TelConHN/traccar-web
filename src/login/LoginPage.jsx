@@ -34,7 +34,6 @@ import LoginLayout from './LoginLayout';
 import TikTokIcon from './TikTokIcon';
 import usePersistedState from '../common/util/usePersistedState';
 import {
-  generateLoginToken,
   handleLoginTokenListeners,
   nativeEnvironment,
   nativePostMessage,
@@ -42,7 +41,6 @@ import {
 import LogoImage from './LogoImage';
 import { useCatch } from '../reactHelper';
 import QrCodeDialog from '../common/components/QrCodeDialog';
-import fetchOrThrow from '../common/util/fetchOrThrow';
 
 const useStyles = makeStyles()((theme) => ({
   options: {
@@ -113,6 +111,9 @@ const LoginPage = () => {
   // Cuenta deshabilitada desde el panel de admin (suspensión). Antes se mostraba como
   // "contraseña incorrecta" y la persona seguía probando claves sin saber qué pasaba.
   const [suspendida, setSuspendida] = useState(false);
+  // La app del teléfono entra sola con un token guardado; si venció o se revocó, el servidor
+  // responde "Token has expired"/"Token has been revoked" en inglés y la persona no sabía qué hacer.
+  const [sesionVencida, setSesionVencida] = useState(false);
 
   const [email, setEmail] = usePersistedState('loginEmail', '');
   const [password, setPassword] = useState('');
@@ -152,6 +153,7 @@ const LoginPage = () => {
     event.preventDefault();
     setFailed(false);
     setSuspendida(false);
+    setSesionVencida(false);
     try {
       const query = `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
       const response = await fetch('/api/session', {
@@ -160,7 +162,6 @@ const LoginPage = () => {
       });
       if (response.ok) {
         const user = await response.json();
-        generateLoginToken();
         dispatch(sessionActions.updateUser(user));
         const target = window.sessionStorage.getItem('postLogin') || '/';
         window.sessionStorage.removeItem('postLogin');
@@ -185,7 +186,15 @@ const LoginPage = () => {
   };
 
   const handleTokenLogin = useCatch(async (token) => {
-    const response = await fetchOrThrow(`/api/session?token=${encodeURIComponent(token)}`);
+    const response = await fetch(`/api/session?token=${encodeURIComponent(token)}`);
+    if (!response.ok) {
+      const text = await response.text();
+      if (/token has (expired|been revoked)/i.test(text)) {
+        setSesionVencida(true);
+        return;
+      }
+      throw Error(text);
+    }
     const user = await response.json();
     dispatch(sessionActions.updateUser(user));
     navigate('/');
@@ -292,6 +301,11 @@ const LoginPage = () => {
                 <AlertTitle>Acceso suspendido</AlertTitle>
                 El acceso de esta cuenta está suspendido. Para más información, comuníquese con el
                 titular del servicio o con TelConHN al 9316-0446.
+              </Alert>
+            )}
+            {sesionVencida && (
+              <Alert severity="info">
+                Tu sesión guardada venció. Escribe tu contraseña para continuar.
               </Alert>
             )}
             {codeEnabled && (

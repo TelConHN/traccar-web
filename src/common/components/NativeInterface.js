@@ -56,6 +56,17 @@ const NativeInterface = () => {
   const user = useSelector((state) => state.session.user);
   const [notificationToken, setNotificationToken] = useState(null);
 
+  // El token guardado en la app dura 6 meses desde que se emite y antes solo se emitía al
+  // escribir la contraseña: se vencía aunque la persona abriera la app a diario. Renovarlo en
+  // cada apertura (entre con token o con la sesión aún viva) hace que solo venza tras 6 meses
+  // sin abrir la app.
+  const userId = user?.id;
+  useEffect(() => {
+    if (userId) {
+      generateLoginToken();
+    }
+  }, [userId]);
+
   useEffect(() => {
     const listener = (token) => setNotificationToken(token);
     updateNotificationTokenListeners.add(listener);
