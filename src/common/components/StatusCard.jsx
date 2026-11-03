@@ -30,6 +30,7 @@ import PendingIcon from '@mui/icons-material/Pending';
 import { useTranslation } from './LocalizationProvider';
 import RemoveDialog from './RemoveDialog';
 import PositionValue from './PositionValue';
+import AttributeName from './AttributeName';
 import {
   useAdministrator,
   useDeviceReadonly,
@@ -234,7 +235,9 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                         .map((key) => (
                           <StatusRow
                             key={key}
-                            name={positionAttributes[key]?.name || key}
+                            name={
+                              <AttributeName attribute={positionAttributes[key]} fallback={key} />
+                            }
                             content={
                               <PositionValue
                                 position={position}

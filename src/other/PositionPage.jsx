@@ -19,6 +19,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useEffectAsync } from '../reactHelper';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import PositionValue from '../common/components/PositionValue';
+import AttributeName from '../common/components/AttributeName';
 import usePositionAttributes from '../common/attributes/usePositionAttributes';
 import BackIcon from '../common/components/BackIcon';
 import fetchOrThrow from '../common/util/fetchOrThrow';
@@ -108,7 +109,9 @@ const PositionPage = () => {
                     <TableRow key={attribute}>
                       <TableCell>{attribute}</TableCell>
                       <TableCell>
-                        <strong>{positionAttributes[attribute]?.name}</strong>
+                        <strong>
+                          <AttributeName attribute={positionAttributes[attribute]} />
+                        </strong>
                       </TableCell>
                       <TableCell>
                         <PositionValue position={item} attribute={attribute} />

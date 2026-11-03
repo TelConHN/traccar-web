@@ -204,16 +204,25 @@ export default (t) =>
       },
       power: {
         name: t('positionPower'),
+        description: t('positionPowerHelp'),
         type: 'number',
         dataType: 'voltage',
       },
       battery: {
         name: t('positionBattery'),
+        description: t('positionBatteryHelp'),
         type: 'number',
         dataType: 'voltage',
       },
+      io113: {
+        name: t('positionBatteryLevel'),
+        description: t('positionBatteryLevelHelp'),
+        type: 'number',
+        dataType: 'percentage',
+      },
       batteryLevel: {
         name: t('positionBatteryLevel'),
+        description: t('positionBatteryLevelHelp'),
         type: 'number',
         dataType: 'percentage',
       },
