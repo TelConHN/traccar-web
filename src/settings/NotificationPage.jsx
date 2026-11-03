@@ -10,7 +10,6 @@ import {
   FormGroup,
   Button,
   TextField,
-  Alert,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useTranslation, useTranslationKeys } from '../common/components/LocalizationProvider';
@@ -21,6 +20,7 @@ import SettingsMenu from './components/SettingsMenu';
 import { useCatch } from '../reactHelper';
 import useSettingsStyles from './common/useSettingsStyles';
 import fetchOrThrow from '../common/util/fetchOrThrow';
+import VoltageAlarmsHelp from './components/VoltageAlarmsHelp';
 
 // Alarmas que calcula VoltageEventHandler con el voltaje del vehículo (no las manda el GPS).
 const PLATFORM_ALARMS = ['powerDisconnected', 'lowVoltage', 'powerReconnected'];
@@ -105,25 +105,7 @@ const NotificationPage = () => {
               {item.type === 'alarm' &&
                 item.attributes?.alarms
                   ?.split(/[, ]+/)
-                  .some((alarm) => PLATFORM_ALARMS.includes(alarm)) && (
-                  <Alert severity="info">
-                    Las alarmas «medidas por la plataforma» no las manda el GPS: las calcula el
-                    sistema con el voltaje de la batería del carro («Energía» en el mapa).
-                    <br />
-                    <b>Batería desconectada:</b> el voltaje cae a menos de 1 V. Vuelve a avisar si
-                    la batería estuvo puesta 30 segundos y la quitan otra vez.
-                    <br />
-                    <b>Voltaje bajo:</b> dos reportes seguidos bajo 11.5 V (uno solo es el bajón al
-                    arrancar). No se repite hasta 10 minutos seguidos en 12 V o más.
-                    <br />
-                    <b>Batería reconectada:</b> vuelve a 11.5 V o más después de una desconexión.
-                    <br />
-                    Solo avisan después de ver la batería bien una vez desde que se reinició el
-                    sistema. Camiones de 24 V: poner 23 en «Umbral de voltaje bajo» del dispositivo;
-                    0 lo apaga. Si el GPS también manda «{t('alarmPowerCut')}», pueden llegar los
-                    dos avisos por la misma desconexión.
-                  </Alert>
-                )}
+                  .some((alarm) => PLATFORM_ALARMS.includes(alarm)) && <VoltageAlarmsHelp />}
               <SelectField
                 multiple
                 value={item.notificators ? item.notificators.split(/[, ]+/) : []}
