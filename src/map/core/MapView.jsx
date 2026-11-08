@@ -22,6 +22,16 @@ export const map = new maplibregl.Map({
   attributionControl: false,
 });
 
+// Cuando el navegador le quita el contexto WebGL al mapa (teléfono con la app en segundo plano, poca
+// memoria, la tarjeta gráfica que se reinicia), MapLibre deja `map.style` en null hasta recuperarlo.
+// Mientras tanto, cualquier capa que se desmonte (salir del mapa a Ajustes, por ejemplo) llamaba
+// map.getLayer y la aplicación entera se caía con «Cannot read properties of null (reading
+// 'getLayer')». Sin estilo no hay capas que buscar ni quitar: estas consultas no hacen nada.
+['getLayer', 'getSource', 'removeLayer', 'removeSource', 'hasImage'].forEach((metodo) => {
+  const original = map[metodo].bind(map);
+  map[metodo] = (...args) => (map.style ? original(...args) : undefined);
+});
+
 let ready = false;
 const readyListeners = new Set();
 
@@ -38,6 +48,17 @@ const updateReadyValue = (value) => {
   ready = value;
   readyListeners.forEach((listener) => listener(value));
 };
+
+// El selector de estilos del MapView montado, para recargar el estilo al recuperar el contexto.
+let switcherMontado = null;
+
+// Sin contexto, las capas propias (vehículos, geocercas…) se desmontan como al cambiar de estilo.
+// Al recuperarlo, MapLibre restaura una copia del estilo de antes, con las capas que había en ese
+// momento: se carga el estilo elegido desde cero para que no queden capas huérfanas (vehículos
+// repetidos) y las capas se vuelven a dibujar. Si el mapa no está a la vista, lo hace el próximo
+// MapView al montarse (su selector carga el estilo de nuevo).
+map.on('webglcontextlost', () => updateReadyValue(false));
+map.on('webglcontextrestored', () => switcherMontado?.reload());
 
 const initMap = async () => {
   if (ready) return;
@@ -103,7 +124,9 @@ const MapView = ({ children }) => {
     map.addControl(attribution, theme.direction === 'rtl' ? 'bottom-left' : 'bottom-right');
     map.addControl(navigation, theme.direction === 'rtl' ? 'top-left' : 'top-right');
     map.addControl(switcher, theme.direction === 'rtl' ? 'top-left' : 'top-right');
+    switcherMontado = switcher;
     return () => {
+      if (switcherMontado === switcher) switcherMontado = null;
       map.removeControl(switcher);
       map.removeControl(navigation);
       map.removeControl(attribution);

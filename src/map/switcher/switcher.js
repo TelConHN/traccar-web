@@ -59,6 +59,14 @@ export class SwitcherControl {
     }
   }
 
+  // Vuelve a cargar desde cero el estilo elegido (después de perder el contexto WebGL).
+  reload() {
+    const active = this.mapStyleContainer?.querySelector('.active');
+    if (active) {
+      this.onSelectStyle(active);
+    }
+  }
+
   onSelectStyle(target) {
     this.onBeforeSwitch();
 

@@ -749,7 +749,9 @@ const SeguirContenido = () => {
   // Trazo con sentido de marcha.
   useEffect(() => {
     const m = mapa.current;
-    if (!m || !listo) return;
+    // `m.style` es null mientras el teléfono le quitó el contexto WebGL al mapa (la página en
+    // segundo plano): los datos siguen llegando cada 15 s y tocar capas ahí rompía la página.
+    if (!m || !listo || !m.style) return;
     if (!m.hasImage('flecha')) m.addImage('flecha', imagenFlecha(), { pixelRatio: 2 });
     const geo = {
       type: 'FeatureCollection',
@@ -802,7 +804,7 @@ const SeguirContenido = () => {
   // recorrido, y todo lo demás tenue. Sin nadie elegido, el mapa queda como estaba.
   useEffect(() => {
     const m = mapa.current;
-    if (!m || !listo || !m.getLayer('recorrido-linea')) return;
+    if (!m || !listo || !m.style || !m.getLayer('recorrido-linea')) return;
     // Con varios recorridos se apagan los ajenos; con uno solo se apaga por igual, porque lo que
     // resalta es el tramo del bus, no el recorrido.
     const uno = capas.lineas.length > 1 ? elegido : null;
