@@ -47,7 +47,7 @@ const Conductores = ({ perfil }) => {
   const puedeGestionar = perfil.gestionaUsuarios;
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 900 }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1280 }}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={1.5}

@@ -17,7 +17,8 @@ import { useLocation } from 'react-router-dom';
 import MenuItem from '../common/components/MenuItem';
 import rutasApi from './api';
 
-const RutasMenu = () => {
+/// Las secciones de Rutas: las mismas en el menú de la computadora y en la fila del teléfono.
+export const useSeccionesRutas = () => {
   const { pathname } = useLocation();
 
   // Cuántos avisos sin leer. Se vuelve a mirar cada minuto y al cambiar de sección, así el
@@ -37,44 +38,61 @@ const RutasMenu = () => {
     return () => clearInterval(t);
   }, [contar, pathname]);
 
-  return (
-    <List>
-      <MenuItem
-        title="Mis rutas"
-        link="/rutas"
-        icon={<RouteIcon />}
-        selected={pathname === '/rutas'}
-      />
-      <MenuItem
-        title="Planificar"
-        link="/rutas/planificar"
-        icon={<AddLocationAltIcon />}
-        selected={pathname === '/rutas/planificar'}
-      />
-      <MenuItem
-        title="Rutas cargadas"
-        link="/rutas/cargadas"
-        icon={<LocalShippingIcon />}
-        selected={pathname.startsWith('/rutas/cargadas')}
-      />
-      <MenuItem
-        title="Usuarios"
-        link="/rutas/usuarios"
-        icon={<PeopleIcon />}
-        selected={pathname === '/rutas/usuarios'}
-      />
-      <MenuItem
-        title="Avisos"
-        link="/rutas/avisos"
-        icon={
-          <Badge badgeContent={noLeidas} color="error" max={99}>
-            <NotificationsIcon />
-          </Badge>
-        }
-        selected={pathname === '/rutas/avisos'}
-      />
-    </List>
-  );
+  return [
+    {
+      titulo: 'Mis rutas',
+      ruta: '/rutas',
+      icono: <RouteIcon />,
+      elegida: pathname === '/rutas',
+    },
+    {
+      titulo: 'Planificar',
+      ruta: '/rutas/planificar',
+      icono: <AddLocationAltIcon />,
+      elegida: pathname === '/rutas/planificar',
+    },
+    {
+      titulo: 'Rutas cargadas',
+      ruta: '/rutas/cargadas',
+      icono: <LocalShippingIcon />,
+      elegida: pathname.startsWith('/rutas/cargadas'),
+    },
+    {
+      titulo: 'Usuarios',
+      ruta: '/rutas/usuarios',
+      icono: <PeopleIcon />,
+      elegida: pathname.startsWith('/rutas/usuarios'),
+    },
+    {
+      titulo: 'Avisos',
+      ruta: '/rutas/avisos',
+      icono: <NotificationsIcon />,
+      elegida: pathname === '/rutas/avisos',
+      pendientes: noLeidas,
+    },
+  ];
 };
+
+const RutasMenu = ({ secciones }) => (
+  <List>
+    {secciones.map((s) => (
+      <MenuItem
+        key={s.ruta}
+        title={s.titulo}
+        link={s.ruta}
+        icon={
+          s.pendientes > 0 ? (
+            <Badge badgeContent={s.pendientes} color="error" max={99}>
+              {s.icono}
+            </Badge>
+          ) : (
+            s.icono
+          )
+        }
+        selected={s.elegida}
+      />
+    ))}
+  </List>
+);
 
 export default RutasMenu;

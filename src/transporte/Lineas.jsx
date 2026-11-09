@@ -42,7 +42,7 @@ const Lineas = ({ puedeEditar, descripcion }) => {
   );
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 900 }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1280 }}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={1.5}
@@ -92,12 +92,12 @@ const Lineas = ({ puedeEditar, descripcion }) => {
           </Avatar>
           <Typography variant="h6">Todavía no hay recorridos</Typography>
           <Typography color="text.secondary" sx={{ maxWidth: 460 }}>
-            El primero se crea grabando un viaje que el bus ya hizo: elegís el bus y el día, y el
-            sistema saca el recorrido y propone las paradas. No hay que dibujar nada.
+            El primero sale de un viaje que el bus ya hizo: elegís el bus y el día, y el sistema
+            saca el recorrido y propone las paradas. No hay que dibujar nada.
           </Typography>
           {puedeEditar && (
             <Button variant="contained" onClick={() => navigate('/transporte/recorridos/nueva')}>
-              Grabar el primer recorrido
+              Crear el primer recorrido
             </Button>
           )}
         </Stack>

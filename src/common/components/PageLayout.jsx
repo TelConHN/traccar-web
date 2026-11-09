@@ -18,7 +18,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from './LocalizationProvider';
 import BackIcon from './BackIcon';
 
-const useStyles = makeStyles()((theme, { miniVariant }) => ({
+const useStyles = makeStyles()((theme, { miniVariant, anchoMenu }) => ({
   root: {
     height: '100%',
     display: 'flex',
@@ -27,7 +27,9 @@ const useStyles = makeStyles()((theme, { miniVariant }) => ({
     },
   },
   desktopDrawer: {
-    width: miniVariant ? `calc(${theme.spacing(8)} + 1px)` : theme.dimensions.drawerWidthDesktop,
+    width: miniVariant
+      ? `calc(${theme.spacing(8)} + 1px)`
+      : (anchoMenu ?? theme.dimensions.drawerWidthDesktop),
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
@@ -89,9 +91,9 @@ const PageTitle = ({ breadcrumbs }) => {
   );
 };
 
-const PageLayout = ({ menu, breadcrumbs, children }) => {
+const PageLayout = ({ menu, breadcrumbs, breadcrumbsMovil, anchoMenu, children }) => {
   const [miniVariant, setMiniVariant] = useState(false);
-  const { classes } = useStyles({ miniVariant });
+  const { classes } = useStyles({ miniVariant, anchoMenu });
   const theme = useTheme();
   const navigate = useNavigate();
 
@@ -164,7 +166,7 @@ const PageLayout = ({ menu, breadcrumbs, children }) => {
             >
               <MenuIcon />
             </IconButton>
-            <PageTitle breadcrumbs={breadcrumbs} />
+            <PageTitle breadcrumbs={breadcrumbsMovil ?? breadcrumbs} />
           </Toolbar>
         </AppBar>
       )}

@@ -21,6 +21,8 @@ import {
   Tabs,
   TextField,
   Typography,
+  Paper,
+  useMediaQuery,
 } from '@mui/material';
 import { useEffectAsync } from '../reactHelper';
 import { exportarExcelTransporte, exportarCsvTransporte } from './exportar';
@@ -82,7 +84,67 @@ const TablaGrupo = ({ filas, etiqueta }) => (
   </Table>
 );
 
+const Cifra = ({ etiqueta, children }) => (
+  <div>
+    <Typography variant="caption" color="text.secondary" display="block">
+      {etiqueta}
+    </Typography>
+    <Typography variant="body2" fontWeight={600}>
+      {children}
+    </Typography>
+  </div>
+);
+
+const SinViajes = () => (
+  <Typography color="text.secondary" align="center" sx={{ py: 3 }}>
+    Sin viajes terminados en estos días.
+  </Typography>
+);
+
+// En el teléfono cada fila es una tarjeta: de una tabla de diez columnas se veían dos y media.
+const TarjetasGrupo = ({ filas }) =>
+  filas.length === 0 ? (
+    <SinViajes />
+  ) : (
+    <Stack spacing={1.5}>
+      {filas.map((g) => (
+        <Paper key={g.clave} variant="outlined" sx={{ p: 1.5 }}>
+          <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="baseline">
+            <Typography fontWeight={600}>{g.nombre}</Typography>
+            <Typography fontWeight={600} sx={{ whiteSpace: 'nowrap' }}>
+              {g.paradas ? `${Math.round((g.seDetuvo / g.paradas) * 100)} %` : '—'}
+            </Typography>
+          </Stack>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: 1,
+              mt: 1,
+            }}
+          >
+            <Cifra etiqueta="Viajes">
+              {g.viajes}
+              {g.sinDatos ? ` (${g.sinDatos} sin datos)` : ''}
+            </Cifra>
+            <Cifra etiqueta="Paradas">{g.paradas}</Cifra>
+            <Cifra etiqueta="Se detuvo">{g.seDetuvo}</Cifra>
+            <Cifra etiqueta="Sin detenerse">
+              {g.sinDetenerse}
+              {g.obligatoriasSaltadas ? ` (${g.obligatoriasSaltadas} oblig.)` : ''}
+            </Cifra>
+            <Cifra etiqueta="Sin datos">{g.paradasSinDatos}</Cifra>
+            <Cifra etiqueta="Desvíos">{g.desvios}</Cifra>
+            <Cifra etiqueta="Excesos">{g.excesos ?? 0}</Cifra>
+            <Cifra etiqueta="Detenciones">{g.detencionesFuera ?? 0}</Cifra>
+          </Box>
+        </Paper>
+      ))}
+    </Stack>
+  );
+
 const Reportes = ({ perfil }) => {
+  const telefono = useMediaQuery((tema) => tema.breakpoints.down('lg'));
   const theme = useTheme();
   const navigate = useNavigate();
   const [desde, setDesde] = useState(haceDias(6));
@@ -102,7 +164,7 @@ const Reportes = ({ perfil }) => {
   }, [desde, hasta, perfil?.clienteElegido?.id]);
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100 }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1280 }}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={1.5}
@@ -113,7 +175,14 @@ const Reportes = ({ perfil }) => {
         <Typography variant="h5" component="h1" fontWeight={600}>
           Reportes
         </Typography>
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          useFlexGap
+          flexWrap="wrap"
+          sx={{ '& .MuiTextField-root': { flex: { xs: '1 1 130px', sm: '0 0 auto' } } }}
+        >
           <TextField
             type="date"
             size="small"
@@ -180,7 +249,68 @@ const Reportes = ({ perfil }) => {
       </Tabs>
       {!reporte && !error && <LinearProgress />}
       {error && <Alert severity="error">{error}</Alert>}
-      {reporte && (
+      {reporte && telefono && (
+        <>
+          {pestana === 0 && <TarjetasGrupo filas={reporte.porLinea} />}
+          {pestana === 1 && <TarjetasGrupo filas={reporte.porBus} />}
+          {pestana === 2 && <TarjetasGrupo filas={reporte.porConductor} />}
+          {pestana === 3 &&
+            (reporte.viajes.length === 0 ? (
+              <SinViajes />
+            ) : (
+              <Stack spacing={1.5}>
+                {reporte.viajes.map((v) => (
+                  <Paper
+                    key={v.viajeId}
+                    variant="outlined"
+                    sx={{ p: 1.5, cursor: 'pointer' }}
+                    onClick={() => navigate(`/transporte/viajes/${v.viajeId}`)}
+                  >
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      useFlexGap
+                      flexWrap="wrap"
+                      columnGap={1}
+                    >
+                      <Typography fontWeight={600}>
+                        {v.linea} · {v.variante}
+                      </Typography>
+                      <Chip
+                        size="small"
+                        color={ESTADO_VIAJE[v.estado]?.color}
+                        label={ESTADO_VIAJE[v.estado]?.texto ?? v.estado}
+                      />
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary">
+                      {String(v.fecha).slice(0, 10)} · {hora(v.inicioEn)}–{hora(v.finEn)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {v.vehiculo} · {v.conductor ?? 'Sin conductor'}
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                        gap: 1,
+                        mt: 1,
+                      }}
+                    >
+                      <Cifra etiqueta="Paradas">
+                        {v.se_detuvo}/{v.paradas}
+                        {v.obligatoriasSaltadas ? ` · ${v.obligatoriasSaltadas} saltadas` : ''}
+                      </Cifra>
+                      <Cifra etiqueta="Desvíos">{v.desvios}</Cifra>
+                      <Cifra etiqueta="Excesos">{v.excesos ?? 0}</Cifra>
+                    </Box>
+                  </Paper>
+                ))}
+              </Stack>
+            ))}
+        </>
+      )}
+      {reporte && !telefono && (
         <Box sx={{ overflowX: 'auto' }}>
           {pestana === 0 && <TablaGrupo filas={reporte.porLinea} etiqueta="Recorrido" />}
           {pestana === 1 && <TablaGrupo filas={reporte.porBus} etiqueta="Bus" />}

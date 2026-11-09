@@ -179,13 +179,13 @@ const TramosLinea = ({
             );
             return (
               <Stack key={p.id ?? p.orden} direction="row" spacing={1} alignItems="center">
-                <Typography variant="body2" sx={{ flexGrow: 1, minWidth: 0 }} noWrap>
+                <Typography variant="body2" sx={{ flex: '1 1 0', minWidth: 0 }}>
                   {p.nombre} → {siguiente.nombre}
                 </Typography>
                 <TextField
                   select
                   size="small"
-                  sx={{ width: 120 }}
+                  sx={{ width: 120, flexShrink: 0 }}
                   value={puesto?.limiteKmh ?? ''}
                   onChange={(e) => {
                     const valor = e.target.value === '' ? null : Number(e.target.value);

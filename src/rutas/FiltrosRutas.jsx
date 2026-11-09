@@ -21,6 +21,7 @@ import {
   Typography,
   Collapse,
   Badge,
+  useMediaQuery,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -68,6 +69,7 @@ const FiltrosRutas = ({
   total,
   truncado,
 }) => {
+  const telefono = useMediaQuery((theme) => theme.breakpoints.down('md'));
   const [masFiltros, setMasFiltros] = useState(false);
   const rangos = periodos();
   const periodoActivo = Object.entries(rangos).find(
@@ -88,6 +90,29 @@ const FiltrosRutas = ({
     onCambiar({ estado: siguiente.join(',') });
   };
 
+  const activosTelefono =
+    (filtros.desde || filtros.hasta ? 1 : 0) +
+    estados.length +
+    (filtros.novedades ? 1 : 0) +
+    avanzados;
+
+  const selectorOrden = (
+    <TextField
+      select
+      size="small"
+      label="Orden"
+      value={filtros.orden ?? 'fecha_desc'}
+      onChange={(e) => onCambiar({ orden: e.target.value === 'fecha_desc' ? '' : e.target.value })}
+      sx={{ flex: { xs: '1 1 100%', md: '0 0 210px' } }}
+    >
+      {Object.entries(ORDENES).map(([valor, nombre]) => (
+        <MenuItem key={valor} value={valor}>
+          {nombre}
+        </MenuItem>
+      ))}
+    </TextField>
+  );
+
   return (
     <Stack spacing={1.25} sx={{ p: 2, pb: 1 }}>
       <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
@@ -96,7 +121,7 @@ const FiltrosRutas = ({
           placeholder="Buscar por ruta, parada, vehículo, conductor o quién la creó"
           value={busqueda}
           onChange={(e) => onBuscar(e.target.value)}
-          sx={{ flexGrow: 1, minWidth: 260 }}
+          sx={{ flex: '1 1 200px' }}
           slotProps={{
             input: {
               startAdornment: (
@@ -107,112 +132,119 @@ const FiltrosRutas = ({
             },
           }}
         />
-        <TextField
-          select
-          size="small"
-          label="Orden"
-          value={filtros.orden ?? 'fecha_desc'}
-          onChange={(e) =>
-            onCambiar({ orden: e.target.value === 'fecha_desc' ? '' : e.target.value })
-          }
-          sx={{ minWidth: 210 }}
-        >
-          {Object.entries(ORDENES).map(([valor, nombre]) => (
-            <MenuItem key={valor} value={valor}>
-              {nombre}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Stack>
-
-      <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1 }}>
-        {Object.entries(rangos).map(([clave, r]) => (
-          <Chip
-            key={clave}
-            label={r.texto}
-            size="small"
-            color={periodoActivo === clave ? 'primary' : 'default'}
-            variant={periodoActivo === clave ? 'filled' : 'outlined'}
-            onClick={() => onCambiar({ desde: r.desde, hasta: r.hasta })}
-          />
-        ))}
-        <TextField
-          size="small"
-          type="date"
-          label="Desde"
-          value={filtros.desde ?? ''}
-          onChange={(e) => onCambiar({ desde: e.target.value })}
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{ width: 150 }}
-        />
-        <TextField
-          size="small"
-          type="date"
-          label="Hasta"
-          value={filtros.hasta ?? ''}
-          onChange={(e) => onCambiar({ hasta: e.target.value })}
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{ width: 150 }}
-        />
-      </Stack>
-
-      <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1 }}>
-        {ESTADOS.map((e) => (
-          <Chip
-            key={e.valor}
-            label={e.texto}
-            size="small"
-            color={estados.includes(e.valor) ? 'primary' : 'default'}
-            variant={estados.includes(e.valor) ? 'filled' : 'outlined'}
-            onClick={() => alternarEstado(e.valor)}
-          />
-        ))}
-        <FormControlLabel
-          sx={{ ml: 0.5 }}
-          control={
-            <Switch
-              size="small"
-              checked={Boolean(filtros.novedades)}
-              onChange={(ev) => onCambiar({ novedades: ev.target.checked ? 'true' : '' })}
-            />
-          }
-          label={<Typography variant="body2">Solo las que van mal</Typography>}
-        />
-        <Button
-          size="small"
-          startIcon={
-            <Badge badgeContent={avanzados} color="primary">
-              <TuneIcon fontSize="small" />
-            </Badge>
-          }
-          onClick={() => setMasFiltros((v) => !v)}
-        >
-          Más filtros
-        </Button>
-        {hayFiltros && (
+        {telefono ? (
           <Button
-            size="small"
-            onClick={() => {
-              onBuscar('');
-              onCambiar({
-                desde: '',
-                hasta: '',
-                estado: '',
-                novedades: '',
-                traccarDeviceId: '',
-                conductorUserId: '',
-                creadorId: '',
-                tipo: '',
-                q: '',
-              });
-            }}
+            variant="outlined"
+            startIcon={
+              <Badge badgeContent={activosTelefono} color="primary">
+                <TuneIcon fontSize="small" />
+              </Badge>
+            }
+            aria-expanded={masFiltros}
+            onClick={() => setMasFiltros((v) => !v)}
           >
-            Quitar filtros
+            Filtros
           </Button>
+        ) : (
+          selectorOrden
         )}
       </Stack>
 
-      <Collapse in={masFiltros || avanzados > 0}>
+      <Collapse in={!telefono || masFiltros}>
+        <Stack spacing={1.25}>
+          {telefono && selectorOrden}
+          <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1 }}>
+            {Object.entries(rangos).map(([clave, r]) => (
+              <Chip
+                key={clave}
+                label={r.texto}
+                size="small"
+                color={periodoActivo === clave ? 'primary' : 'default'}
+                variant={periodoActivo === clave ? 'filled' : 'outlined'}
+                onClick={() => onCambiar({ desde: r.desde, hasta: r.hasta })}
+              />
+            ))}
+            <TextField
+              size="small"
+              type="date"
+              label="Desde"
+              value={filtros.desde ?? ''}
+              onChange={(e) => onCambiar({ desde: e.target.value })}
+              slotProps={{ inputLabel: { shrink: true } }}
+              sx={{ flex: { xs: '1 1 130px', md: '0 0 150px' } }}
+            />
+            <TextField
+              size="small"
+              type="date"
+              label="Hasta"
+              value={filtros.hasta ?? ''}
+              onChange={(e) => onCambiar({ hasta: e.target.value })}
+              slotProps={{ inputLabel: { shrink: true } }}
+              sx={{ flex: { xs: '1 1 130px', md: '0 0 150px' } }}
+            />
+          </Stack>
+
+          <Stack direction="row" alignItems="center" sx={{ flexWrap: 'wrap', gap: 1 }}>
+            {ESTADOS.map((e) => (
+              <Chip
+                key={e.valor}
+                label={e.texto}
+                size="small"
+                color={estados.includes(e.valor) ? 'primary' : 'default'}
+                variant={estados.includes(e.valor) ? 'filled' : 'outlined'}
+                onClick={() => alternarEstado(e.valor)}
+              />
+            ))}
+            <FormControlLabel
+              sx={{ ml: 0.5 }}
+              control={
+                <Switch
+                  size="small"
+                  checked={Boolean(filtros.novedades)}
+                  onChange={(ev) => onCambiar({ novedades: ev.target.checked ? 'true' : '' })}
+                />
+              }
+              label={<Typography variant="body2">Solo las que van mal</Typography>}
+            />
+            {!telefono && (
+              <Button
+                size="small"
+                startIcon={
+                  <Badge badgeContent={avanzados} color="primary">
+                    <TuneIcon fontSize="small" />
+                  </Badge>
+                }
+                onClick={() => setMasFiltros((v) => !v)}
+              >
+                Más filtros
+              </Button>
+            )}
+            {hayFiltros && (
+              <Button
+                size="small"
+                onClick={() => {
+                  onBuscar('');
+                  onCambiar({
+                    desde: '',
+                    hasta: '',
+                    estado: '',
+                    novedades: '',
+                    traccarDeviceId: '',
+                    conductorUserId: '',
+                    creadorId: '',
+                    tipo: '',
+                    q: '',
+                  });
+                }}
+              >
+                Quitar filtros
+              </Button>
+            )}
+          </Stack>
+        </Stack>
+      </Collapse>
+
+      <Collapse in={masFiltros || (!telefono && avanzados > 0)}>
         <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1, pt: 0.5 }}>
           <TextField
             select
@@ -220,7 +252,7 @@ const FiltrosRutas = ({
             label="Vehículo"
             value={filtros.traccarDeviceId ?? ''}
             onChange={(e) => onCambiar({ traccarDeviceId: e.target.value })}
-            sx={{ minWidth: 190 }}
+            sx={{ flex: '1 1 190px' }}
           >
             <MenuItem value="">Todos</MenuItem>
             {vehiculos.map((v) => (
@@ -235,7 +267,7 @@ const FiltrosRutas = ({
             label="Conductor"
             value={filtros.conductorUserId ?? ''}
             onChange={(e) => onCambiar({ conductorUserId: e.target.value })}
-            sx={{ minWidth: 190 }}
+            sx={{ flex: '1 1 190px' }}
           >
             <MenuItem value="">Todos</MenuItem>
             {conductores.map((c) => (
@@ -250,7 +282,7 @@ const FiltrosRutas = ({
             label="Creada por"
             value={filtros.creadorId ?? ''}
             onChange={(e) => onCambiar({ creadorId: e.target.value })}
-            sx={{ minWidth: 190 }}
+            sx={{ flex: '1 1 190px' }}
           >
             <MenuItem value="">Cualquiera</MenuItem>
             {creadores.map((c) => (
@@ -265,7 +297,7 @@ const FiltrosRutas = ({
             label="Tipo"
             value={filtros.tipo ?? ''}
             onChange={(e) => onCambiar({ tipo: e.target.value })}
-            sx={{ minWidth: 170 }}
+            sx={{ flex: '1 1 170px' }}
           >
             <MenuItem value="">Todos</MenuItem>
             <MenuItem value="paquetes">Entrega de paquetes</MenuItem>

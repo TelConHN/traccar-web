@@ -9,6 +9,7 @@
 // guardadas en memoria no pasaba.
 import { useState, useCallback, useMemo, useEffect, Fragment } from 'react';
 import {
+  Box,
   Table,
   TableHead,
   TableBody,
@@ -32,8 +33,9 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import SearchIcon from '@mui/icons-material/Search';
 import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { makeStyles } from 'tss-react/mui';
-import PageLayout from '../common/components/PageLayout';
-import RutasMenu from './RutasMenu';
+import LayoutServicio from '../servicios/LayoutServicio';
+import { useConfirmar } from '../servicios/Confirmar';
+import RutasMenu, { useSeccionesRutas } from './RutasMenu';
 import { useEffectAsync } from '../reactHelper';
 import { useAdministrator } from '../common/util/permissions';
 import SelectorCliente from '../servicios/SelectorCliente';
@@ -54,7 +56,15 @@ const useStyles = makeStyles()((theme) => ({
   // `minHeight: 0` no es decorativo: un elemento flex nunca se encoge por debajo de su
   // contenido salvo que se le diga, y sin eso el mapa empuja la tabla fuera de la pantalla
   // en vez de que la tabla scrollee. Es el mismo patrón de las páginas de reportes.
-  cuerpo: { flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column' },
+  cuerpo: {
+    flexGrow: 1,
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    // En el teléfono baja toda la página de una vez: con una barra dentro de otra, lo que queda
+    // para el contenido era una ventanita de 200 px.
+    [theme.breakpoints.down('md')]: { flexShrink: 0, minHeight: 'auto' },
+  },
   // En el teléfono cada fila es una tarjeta: una tabla de ocho columnas en 390 px dejaba fuera
   // la situación y todos los botones, y no había cómo llegar a ellos.
   tarjetas: {
@@ -148,8 +158,10 @@ const SECCIONES = [
 ];
 
 const RutasPage = () => {
+  const [confirmar, dialogoConfirmar] = useConfirmar();
   const { classes } = useStyles();
-  const angosta = useMediaQuery((theme) => theme.breakpoints.down('md'));
+  // Por debajo de esto, la tabla de rutas ya no cabe al lado del menú: se usan las tarjetas.
+  const angosta = useMediaQuery('(max-width:1340px)');
   const navigate = useNavigate();
   const admin = useAdministrator();
   // Un administrador trabaja para un cliente o mira todos (ver servicios/clienteAdmin.js). Mirando
@@ -354,7 +366,11 @@ const RutasPage = () => {
         <Chip
           size="small"
           variant="outlined"
-          sx={{ height: 18, fontSize: '0.62rem', mt: 0.25 }}
+          sx={{
+            height: { xs: 24, md: 20 },
+            fontSize: { xs: '0.75rem', md: '0.6875rem' },
+            mt: 0.25,
+          }}
           label={`Ruta ${ordenDelDia.get(j.id).numero} de ${ordenDelDia.get(j.id).total} del día`}
         />
       )}
@@ -417,6 +433,9 @@ const RutasPage = () => {
       </>
     ) : (
       <>
+        <Button size="small" onClick={() => navigate(`/rutas/${j.id}`)}>
+          Detalle
+        </Button>
         {j.estado === 'borrador' && (
           <Button size="small" onClick={() => accion(() => rutasApi.despachar(j.id))}>
             Despachar
@@ -450,11 +469,19 @@ const RutasPage = () => {
             Repetir
           </Button>
         </Tooltip>
-        <Button size="small" onClick={() => navigate(`/rutas/${j.id}`)}>
-          Detalle
-        </Button>
         {j.estado === 'despachada' && (
-          <Button size="small" onClick={() => accion(() => rutasApi.cerrar(j.id))}>
+          <Button
+            size="small"
+            onClick={async () => {
+              const ok = await confirmar({
+                titulo: 'Cerrar esta ruta',
+                detalle:
+                  'Termina la ruta y el vehículo queda como estaba: el conductor ya no puede marcar entregas en ella.',
+                accion: 'Cerrar ruta',
+              });
+              if (ok) accion(() => rutasApi.cerrar(j.id));
+            }}
+          >
             Cerrar
           </Button>
         )}
@@ -469,15 +496,24 @@ const RutasPage = () => {
       <TableCell>{nombreConductor(j.conductorUserId)}</TableCell>
       <TableCell>{situacionJornada(j)}</TableCell>
       <TableCell sx={{ minWidth: 120 }}>{avanceJornada(j)}</TableCell>
-      <TableCell align="right">{j.distanciaKm != null ? `${j.distanciaKm} km` : '—'}</TableCell>
-      <TableCell align="right">
-        {duracion(j.minutosEstimados)}
+      <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+        {j.distanciaKm != null ? `${j.distanciaKm} km` : '—'} · {duracion(j.minutosEstimados)}
         <Typography variant="caption" color="text.secondary" display="block">
           libre {hora(finDe(j))}
         </Typography>
       </TableCell>
-      <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-        {accionesJornada(j)}
+      <TableCell align="right">
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+            width: 200,
+            ml: 'auto',
+          }}
+        >
+          {accionesJornada(j)}
+        </Box>
       </TableCell>
     </TableRow>
   );
@@ -558,7 +594,15 @@ const RutasPage = () => {
       <Button
         size="small"
         color="error"
-        onClick={() => accion(() => rutasApi.borrarPlantilla(pl.id))}
+        onClick={async () => {
+          const ok = await confirmar({
+            titulo: `Borrar «${pl.nombre}»`,
+            detalle:
+              'Se borra de Mis rutas. Las rutas ya cargadas con estas paradas no cambian, y los puntos siguen en la libreta.',
+            accion: 'Borrar',
+          });
+          if (ok) accion(() => rutasApi.borrarPlantilla(pl.id));
+        }}
       >
         Borrar
       </Button>
@@ -604,7 +648,14 @@ const RutasPage = () => {
         <Button
           size="small"
           color="error"
-          onClick={() => accion(() => rutasApi.borrarConductor(c.id))}
+          onClick={async () => {
+            const ok = await confirmar({
+              titulo: `Eliminar a ${c.nombre}`,
+              detalle: 'Pierde el acceso a su cuenta y deja de aparecer al asignar rutas.',
+              accion: 'Eliminar',
+            });
+            if (ok) accion(() => rutasApi.borrarConductor(c.id));
+          }}
         >
           Eliminar
         </Button>
@@ -619,25 +670,31 @@ const RutasPage = () => {
   const requiereCliente = viendoTodos && [0, 1, 3].includes(seccion);
   // Introducción guiada: sola la primera vez que alguien que planifica entra a Rutas.
   const tour = useTour('rutas', Boolean(perfil?.planifica && !requiereCliente));
+  const secciones = useSeccionesRutas();
 
   // Con un id en la URL se muestra esa jornada en el mapa. Conserva el menú de la izquierda
   // porque se llega desde «Rutas cargadas»: salir del detalle es elegir otra cosa ahí mismo,
   // sin tener que adivinar a dónde lleva el botón de atrás.
   if (id) {
     return (
-      <PageLayout menu={<RutasMenu />} breadcrumbs={['Rutas', 'Detalle de la ruta']}>
+      <LayoutServicio
+        secciones={secciones}
+        menu={<RutasMenu secciones={secciones} />}
+        breadcrumbs={['Rutas', 'Detalle de la ruta']}
+      >
         <div className={classes.cuerpo}>
           <JornadaMapa jornadaId={id} />
         </div>
-      </PageLayout>
+      </LayoutServicio>
     );
   }
 
   return (
-    <PageLayout
+    <LayoutServicio
+      secciones={secciones}
       menu={
         <div data-tour="menu">
-          <RutasMenu />
+          <RutasMenu secciones={secciones} />
         </div>
       }
       breadcrumbs={['Rutas']}
@@ -700,7 +757,7 @@ const RutasPage = () => {
                     placeholder="Buscar una ruta guardada"
                     value={busquedaPlantilla}
                     onChange={(e) => setBusquedaPlantilla(e.target.value)}
-                    sx={{ minWidth: 280, flexGrow: 1, maxWidth: 420 }}
+                    sx={{ flex: '1 1 240px', maxWidth: { md: 420 } }}
                     slotProps={{
                       input: {
                         startAdornment: (
@@ -717,7 +774,7 @@ const RutasPage = () => {
                     label="Orden"
                     value={ordenPlantillas}
                     onChange={(e) => setOrdenPlantillas(e.target.value)}
-                    sx={{ minWidth: 200 }}
+                    sx={{ flex: { xs: '1 1 200px', md: '0 0 200px' } }}
                   >
                     <MenuItem value="nombre">Por nombre (A–Z)</MenuItem>
                     <MenuItem value="usos">Las más usadas</MenuItem>
@@ -1017,8 +1074,7 @@ const RutasPage = () => {
                       <TableCell>Conductor</TableCell>
                       <TableCell>Situación</TableCell>
                       <TableCell>Avance</TableCell>
-                      <TableCell align="right">Distancia</TableCell>
-                      <TableCell align="right">Tiempo</TableCell>
+                      <TableCell align="right">Distancia y tiempo</TableCell>
                       <TableCell align="right" />
                     </TableRow>
                   </TableHead>
@@ -1030,7 +1086,7 @@ const RutasPage = () => {
                                 martes y empieza el miércoles es la mitad de la lectura. */}
                             <TableRow>
                               <TableCell
-                                colSpan={viendoTodos ? 9 : 8}
+                                colSpan={viendoTodos ? 8 : 7}
                                 sx={{ backgroundColor: 'action.hover', py: 0.5 }}
                               >
                                 <Typography variant="caption" fontWeight={600}>
@@ -1045,7 +1101,7 @@ const RutasPage = () => {
                       : jornadas.map((j) => filaJornada(j))}
                     {jornadas.length === 0 && !cargando && (
                       <TableRow>
-                        <TableCell colSpan={viendoTodos ? 9 : 8}>
+                        <TableCell colSpan={viendoTodos ? 8 : 7}>
                           <Typography variant="body2" color="text.secondary">
                             {clave
                               ? 'Ninguna ruta coincide con lo que buscás.'
@@ -1088,7 +1144,8 @@ const RutasPage = () => {
         onClose={() => setUsuarioEditado(null)}
         onCreado={cargar}
       />
-    </PageLayout>
+      {dialogoConfirmar}
+    </LayoutServicio>
   );
 };
 

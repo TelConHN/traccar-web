@@ -31,12 +31,12 @@ import FactoryIcon from '@mui/icons-material/Factory';
 import DepartureBoardIcon from '@mui/icons-material/DepartureBoard';
 import LuggageIcon from '@mui/icons-material/Luggage';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import PageLayout from '../common/components/PageLayout';
+import LayoutServicio from '../servicios/LayoutServicio';
 import { useEffectAsync } from '../reactHelper';
 import { useAdministrator } from '../common/util/permissions';
 import SelectorCliente from '../servicios/SelectorCliente';
 import { useClienteAdmin } from '../servicios/clienteAdmin';
-import TransporteMenu from './TransporteMenu';
+import TransporteMenu, { useSeccionesTransporte } from './TransporteMenu';
 import Lineas from './Lineas';
 import NuevaLinea from './NuevaLinea';
 import LineaDetalle from './LineaDetalle';
@@ -326,6 +326,8 @@ const TransportePage = () => {
     }
   }, [perfil, operacion, pedida, navigate, sinServicio, requiereCliente]);
 
+  const secciones = useSeccionesTransporte(sinServicio || requiereCliente ? null : operacion);
+
   const guardada = (nueva, resembrada) => {
     if (resembrada) setRecarga((n) => n + 1);
     else setPerfil((p) => ({ ...p, operacion: nueva }));
@@ -443,7 +445,8 @@ const TransportePage = () => {
   }
 
   return (
-    <PageLayout
+    <LayoutServicio
+      secciones={secciones}
       // Sin vehículos con el servicio el menú queda solo con «Hoy», que es donde se explica cómo
       // activarlo: una lista de secciones donde no se puede hacer nada invita a recorrerlas.
       menu={
@@ -491,13 +494,20 @@ const TransportePage = () => {
             activarlo.
           </Alert>
         ))}
-      <div
+      {/* En el teléfono baja toda la página de una vez, sin una barra dentro de otra. */}
+      <Box
         data-tour="contenido"
-        style={{ flexGrow: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+        sx={{
+          flexGrow: 1,
+          minHeight: { xs: 'auto', md: 0 },
+          flexShrink: { xs: 0, md: 1 },
+          display: 'flex',
+          flexDirection: 'column',
+        }}
       >
         {contenido}
-      </div>
-    </PageLayout>
+      </Box>
+    </LayoutServicio>
   );
 };
 

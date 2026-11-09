@@ -95,7 +95,7 @@ const useStyles = makeStyles()((theme) => ({
     bottom: 3,
     borderRadius: 4,
     padding: theme.spacing(0, 0.75),
-    fontSize: '0.66rem',
+    fontSize: '0.72rem',
     fontWeight: 600,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
@@ -264,7 +264,7 @@ const ConductorFicha = ({ conductorId }) => {
   const hoy = hoyTexto();
 
   return (
-    <Stack sx={{ p: 2, maxWidth: 1100 }} spacing={2}>
+    <Stack sx={{ p: 2, maxWidth: 1280 }} spacing={2}>
       {volver}
       {cargando && <LinearProgress />}
       {error && <Alert severity="error">{error}</Alert>}
@@ -465,7 +465,7 @@ const ConductorFicha = ({ conductorId }) => {
                 key={m}
                 variant="caption"
                 color="text.secondary"
-                sx={{ fontSize: '0.62rem' }}
+                sx={{ fontSize: { xs: '0.75rem', md: '0.6875rem' } }}
               >
                 {`${Math.floor(m / 60) % 12 || 12} ${Math.floor(m / 60) < 12 ? 'am' : 'pm'}`}
               </Typography>
@@ -530,8 +530,8 @@ const ConductorFicha = ({ conductorId }) => {
               <TableRow>
                 <TableCell>Día</TableCell>
                 <TableCell>Ruta</TableCell>
-                <TableCell>Horas</TableCell>
-                <TableCell>Vehículo</TableCell>
+                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Horas</TableCell>
+                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Vehículo</TableCell>
                 <TableCell>Estado</TableCell>
               </TableRow>
             </TableHead>
@@ -549,11 +549,22 @@ const ConductorFicha = ({ conductorId }) => {
                     <Typography variant="caption" color="text.secondary" display="block">
                       {r.paradas.length} paradas
                     </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: { xs: 'block', md: 'none' } }}
+                    >
+                      {hora(r.salida)} a {hora(r.fin)} · {r.vehiculo}
+                    </Typography>
                   </TableCell>
-                  <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  <TableCell
+                    sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}
+                  >
                     {hora(r.salida)} a {hora(r.fin)}
                   </TableCell>
-                  <TableCell>{r.vehiculo}</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                    {r.vehiculo}
+                  </TableCell>
                   <TableCell>
                     <Chip
                       size="small"

@@ -43,10 +43,27 @@ const iconoDe = (clave, operacion) =>
     configuracion: <TuneIcon />,
   })[clave];
 
+const gruposDe = (operacion) =>
+  operacion ? seccionesVisibles(operacion) : seccionesVisibles(null).slice(0, 1);
+
+/// Las mismas secciones para la fila del teléfono.
+export const useSeccionesTransporte = (operacion) => {
+  const { pathname } = useLocation();
+  const abierta = seccionDe(pathname).clave;
+  return gruposDe(operacion)
+    .flat()
+    .map((s) => ({
+      titulo: s.titulo,
+      ruta: s.ruta,
+      icono: iconoDe(s.clave, operacion),
+      elegida: abierta === s.clave,
+    }));
+};
+
 const TransporteMenu = ({ operacion }) => {
   const { pathname } = useLocation();
   const abierta = seccionDe(pathname).clave;
-  const grupos = operacion ? seccionesVisibles(operacion) : seccionesVisibles(null).slice(0, 1);
+  const grupos = gruposDe(operacion);
 
   return grupos.map((grupo, i) => (
     <Fragment key={grupo[0].clave}>

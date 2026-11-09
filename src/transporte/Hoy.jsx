@@ -16,8 +16,8 @@ const REFRESCO_MS = 15_000;
 const useStyles = makeStyles()((theme) => ({
   tira: {
     position: 'relative',
-    height: 64,
-    margin: theme.spacing(2, 1.5, 1),
+    height: 76,
+    margin: theme.spacing(2, 2.5, 1),
   },
   riel: {
     position: 'absolute',
@@ -62,13 +62,17 @@ const useStyles = makeStyles()((theme) => ({
     position: 'absolute',
     top: 52,
     transform: 'translateX(-50%)',
-    fontSize: '0.62rem',
-    whiteSpace: 'nowrap',
+    fontSize: '0.72rem',
+    lineHeight: 1.2,
     color: theme.palette.text.secondary,
-    maxWidth: 80,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    width: 'max-content',
+    maxWidth: 110,
+    textAlign: 'center',
   },
+  // Las puntas se alinean hacia adentro y pueden usar casi media tira: centradas sobre el borde,
+  // la mitad del nombre quedaba fuera de la tarjeta.
+  etiquetaInicio: { transform: 'none', textAlign: 'left', maxWidth: '46%' },
+  etiquetaFin: { transform: 'translateX(-100%)', textAlign: 'right', maxWidth: '46%' },
 }));
 
 const COLOR = {
@@ -166,8 +170,16 @@ const Hoy = ({ perfil, primerosPasos }) => {
     `${Math.min(100, Math.max(0, (metro / Math.max(1, total)) * 100))}%`;
 
   return (
-    <Box sx={{ p: { xs: 1.5, md: 3 }, maxWidth: 1100 }}>
-      <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ mb: 1 }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1280 }}>
+      <Stack
+        direction="row"
+        alignItems="baseline"
+        justifyContent="space-between"
+        useFlexGap
+        flexWrap="wrap"
+        columnGap={2}
+        sx={{ mb: 1 }}
+      >
         <Typography variant="h5" component="h1" fontWeight={600}>
           Hoy
         </Typography>
@@ -193,6 +205,9 @@ const Hoy = ({ perfil, primerosPasos }) => {
               direction="row"
               alignItems="center"
               justifyContent="space-between"
+              useFlexGap
+              flexWrap="wrap"
+              columnGap={2}
               sx={{ px: 1.5, pt: 1 }}
             >
               <Typography fontWeight={600}>
@@ -236,7 +251,11 @@ const Hoy = ({ perfil, primerosPasos }) => {
                 .map((p) => (
                   <span
                     key={`e-${p.id}`}
-                    className={classes.etiqueta}
+                    className={cx(
+                      classes.etiqueta,
+                      p.id === g.paradas[0].id && classes.etiquetaInicio,
+                      p.id === g.paradas[g.paradas.length - 1].id && classes.etiquetaFin,
+                    )}
                     style={{ left: pct(p.metroEnLinea, g.variante.metros) }}
                   >
                     {p.nombre}

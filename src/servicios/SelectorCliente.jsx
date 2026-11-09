@@ -4,13 +4,23 @@
 // justo lo que un administrador podría no esperar: sin ese aviso, armar una ruta «de prueba» con un
 // cliente elegido se la dejaría en la cuenta del cliente.
 import { useEffect, useMemo, useState } from 'react';
-import { Autocomplete, Box, Chip, Paper, Stack, TextField, Typography } from '@mui/material';
+import {
+  Autocomplete,
+  Box,
+  Chip,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+  useMediaQuery,
+} from '@mui/material';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { clientesParaAdmin, guardarClienteAdmin } from './clienteAdmin';
 
 const TODOS = { id: null, nombre: 'Todos los clientes' };
 
 const SelectorCliente = ({ servicio, cliente }) => {
+  const telefono = useMediaQuery((theme) => theme.breakpoints.down('md'));
   const [clientes, setClientes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -40,16 +50,34 @@ const SelectorCliente = ({ servicio, cliente }) => {
     <Paper
       square
       elevation={0}
-      sx={{ px: 2, py: 1.25, borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover' }}
+      sx={{
+        px: 2,
+        py: { xs: 1.5, md: 1.25 },
+        flexShrink: 0,
+        borderBottom: 1,
+        borderColor: 'divider',
+        bgcolor: 'action.hover',
+      }}
     >
-      <Stack direction="row" alignItems="center" spacing={1.5} useFlexGap flexWrap="wrap">
-        <AdminPanelSettingsIcon color="primary" fontSize="small" />
-        <Typography variant="body2" color="text.secondary">
-          Administrador · trabajando para
-        </Typography>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1.5}
+        rowGap={{ xs: 0.5, md: 1.5 }}
+        useFlexGap
+        flexWrap="wrap"
+      >
+        {!telefono && (
+          <>
+            <AdminPanelSettingsIcon color="primary" fontSize="small" />
+            <Typography variant="body2" color="text.secondary">
+              Administrador · trabajando para
+            </Typography>
+          </>
+        )}
         <Autocomplete
           size="small"
-          sx={{ flexGrow: 1, minWidth: 240, maxWidth: 440 }}
+          sx={{ flexGrow: 1, minWidth: { xs: '100%', md: 240 }, maxWidth: { md: 440 } }}
           options={opciones}
           value={valor}
           loading={cargando}
@@ -75,16 +103,28 @@ const SelectorCliente = ({ servicio, cliente }) => {
               </Box>
             );
           }}
-          renderInput={(params) => <TextField {...params} placeholder="Elegí un cliente" />}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label={telefono ? 'Administrador · trabajando para' : undefined}
+              placeholder="Elegí un cliente"
+            />
+          )}
         />
-        {cliente ? (
+        {cliente && telefono && (
+          <Typography variant="caption" color="primary">
+            Lo que crees queda a nombre de este cliente
+          </Typography>
+        )}
+        {cliente && !telefono && (
           <Chip
             size="small"
             color="primary"
             variant="outlined"
             label="Lo que crees queda a nombre de este cliente"
           />
-        ) : (
+        )}
+        {!cliente && (
           <Typography variant="caption" color="text.secondary">
             Viendo todos: para crear algo, elegí un cliente.
           </Typography>

@@ -39,7 +39,7 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: 'center',
     overflow: 'hidden',
     whiteSpace: 'nowrap',
-    fontSize: '0.68rem',
+    fontSize: '0.72rem',
     fontWeight: 600,
     boxSizing: 'border-box',
   },
@@ -134,7 +134,13 @@ export function armarDia({ rutas, nueva, horario }) {
   for (let m = inicio; m <= fin; m += total > 12 * 60 ? 180 : 120) marcas.push(m);
 
   return {
-    tramos: tramos.map((t) => ({ ...t, estilo: pos(t) })),
+    tramos: tramos.map((t) => ({
+      ...t,
+      estilo: pos(t),
+      // Menos que esto no alcanza para un nombre: va solo en la lista de abajo.
+      cabe: (t.hasta - t.desde) / total >= 0.18,
+      horas: `${etiquetaHora(t.desde)} a ${etiquetaHora(t.hasta)}`,
+    })),
     nuevo: nuevo ? { ...nuevo, estilo: pos(nuevo) } : null,
     franja: franja ? pos(franja) : null,
     cruces: cruces.map(pos),
@@ -166,7 +172,7 @@ const DiaDelVehiculo = ({ rutas, nueva, horario, titulo }) => {
             style={t.estilo}
             title={t.nombre}
           >
-            {t.nombre}
+            {t.cabe && t.nombre}
           </div>
         ))}
         {dia.cruces.map((c) => (
@@ -183,12 +189,26 @@ const DiaDelVehiculo = ({ rutas, nueva, horario, titulo }) => {
         )}
       </div>
       <div className={classes.reglas}>
-        {dia.marcas.map((m) => (
-          <Typography key={m} variant="caption" color="text.secondary" sx={{ fontSize: '0.62rem' }}>
+        {dia.marcas.map((m, i) => (
+          <Typography
+            key={m}
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              fontSize: '0.72rem',
+              // En el teléfono, una hora de cada dos: juntas se leían como una sola tira de texto.
+              visibility: { xs: i % 2 ? 'hidden' : 'visible', md: 'visible' },
+            }}
+          >
             {m}
           </Typography>
         ))}
       </div>
+      {dia.tramos.map((t) => (
+        <Typography key={t.id} variant="caption" color="text.secondary" display="block">
+          {t.nombre} · {t.horas}
+        </Typography>
+      ))}
     </div>
   );
 };

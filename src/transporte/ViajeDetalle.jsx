@@ -33,8 +33,9 @@ const useStyles = makeStyles()((theme) => ({
     flexGrow: 1,
     minHeight: 0,
     [theme.breakpoints.down('md')]: {
-      gridTemplateColumns: '1fr',
-      gridTemplateRows: 'minmax(220px, 38vh) 1fr',
+      gridTemplateColumns: 'minmax(0, 1fr)',
+      gridTemplateRows: 'minmax(260px, 42vh) auto',
+      minHeight: 'auto',
     },
   },
   panel: {
@@ -42,7 +43,12 @@ const useStyles = makeStyles()((theme) => ({
     overflow: 'auto',
     padding: theme.spacing(2),
     borderRight: `1px solid ${theme.palette.divider}`,
-    [theme.breakpoints.down('md')]: { borderRight: 'none', order: 2 },
+    [theme.breakpoints.down('md')]: {
+      borderRight: 'none',
+      order: 2,
+      overflow: 'visible',
+      minHeight: 'auto',
+    },
   },
   mapa: { position: 'relative', minHeight: 0, [theme.breakpoints.down('md')]: { order: 1 } },
 }));

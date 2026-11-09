@@ -7,7 +7,7 @@
 // El código se ve UNA vez, al crear o regenerar: el servidor guarda solo su hash. Por eso la
 // pantalla lo muestra en un diálogo con WhatsApp, copiar y QR para imprimir, y avisa que después
 // no se puede volver a ver (se regenera).
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Alert,
@@ -34,6 +34,7 @@ import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PrintIcon from '@mui/icons-material/Print';
 import { useEffectAsync } from '../reactHelper';
+import { useConfirmar } from '../servicios/Confirmar';
 import { OPERACIONES } from './operaciones';
 import transporteApi from './api';
 
@@ -67,6 +68,9 @@ const Compartir = ({ operacion }) => {
   const [nuevo, setNuevo] = useState(null);
   const [recienCreado, setRecienCreado] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const campoEnlace = useRef(null);
+  const [confirmar, dialogoConfirmar] = useConfirmar();
 
   const cargar = async () => {
     try {
@@ -108,6 +112,7 @@ const Compartir = ({ operacion }) => {
       if (nuevo.venceEn) datos.venceEn = nuevo.venceEn;
       const e = await transporteApi.crearEnlace(datos);
       setNuevo(null);
+      setCopiado(false);
       setRecienCreado(e);
       await cargar();
     } catch (err) {
@@ -117,21 +122,48 @@ const Compartir = ({ operacion }) => {
     }
   };
 
-  const regenerar = async (id) => {
+  const regenerar = async (e) => {
+    // Reactivar uno vencido no le quita nada a nadie; regenerar uno vigente, sí.
+    if (e.vigente) {
+      const ok = await confirmar({
+        titulo: 'Regenerar este enlace',
+        detalle: `El enlace que ya tiene ${e.etiqueta} deja de funcionar y hay que mandarle el nuevo.`,
+        accion: 'Regenerar',
+      });
+      if (!ok) return;
+    }
     try {
-      setRecienCreado(await transporteApi.regenerarEnlace(id));
+      setCopiado(false);
+      setRecienCreado(await transporteApi.regenerarEnlace(e.id));
       await cargar();
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const revocar = async (id) => {
+  const revocar = async (e) => {
+    const ok = await confirmar({
+      titulo: 'Revocar este enlace',
+      detalle: `${e.etiqueta} deja de ver el seguimiento al instante.`,
+      accion: 'Revocar',
+    });
+    if (!ok) return;
     try {
-      await transporteApi.revocarEnlace(id);
+      await transporteApi.revocarEnlace(e.id);
       await cargar();
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  // El portapapeles falla sin HTTPS o sin permiso: entonces se deja el enlace seleccionado, listo
+  // para copiarlo a mano, en vez de un botón que parece no hacer nada.
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiado(true);
+    } catch {
+      campoEnlace.current?.select();
     }
   };
 
@@ -145,7 +177,7 @@ const Compartir = ({ operacion }) => {
         : variantes;
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 900 }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1280 }}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={1.5}
@@ -173,7 +205,7 @@ const Compartir = ({ operacion }) => {
       </Stack>
 
       {!enlaces && !error && <LinearProgress />}
-      {error && (
+      {error && !nuevo && (
         <Alert severity="error" onClose={() => setError('')} sx={{ mb: 1 }}>
           {error}
         </Alert>
@@ -201,11 +233,11 @@ const Compartir = ({ operacion }) => {
                   color={e.vigente ? 'success' : 'default'}
                   label={e.vigente ? 'Vigente' : 'No vigente'}
                 />
-                <Button size="small" onClick={() => regenerar(e.id)}>
+                <Button size="small" onClick={() => regenerar(e)}>
                   {e.vigente ? 'Regenerar' : 'Reactivar'}
                 </Button>
                 {e.vigente && (
-                  <Button size="small" color="error" onClick={() => revocar(e.id)}>
+                  <Button size="small" color="error" onClick={() => revocar(e)}>
                     Revocar
                   </Button>
                 )}
@@ -220,6 +252,12 @@ const Compartir = ({ operacion }) => {
         <DialogContent>
           {nuevo && (
             <Stack spacing={2} sx={{ mt: 1 }}>
+              {/* Acá y no en la página: quedaría detrás de este diálogo, sin que nadie lo vea. */}
+              {error && (
+                <Alert severity="error" onClose={() => setError('')}>
+                  {error}
+                </Alert>
+              )}
               <ToggleButtonGroup
                 exclusive
                 fullWidth
@@ -269,7 +307,8 @@ const Compartir = ({ operacion }) => {
               <TextField
                 type="date"
                 size="small"
-                label="Vence (vacío = lo normal para tu tipo de transporte)"
+                label="Vence (opcional)"
+                helperText="Si lo dejás vacío, dura lo normal para tu tipo de transporte."
                 value={nuevo.venceEn}
                 onChange={(e) => setNuevo({ ...nuevo, venceEn: e.target.value })}
                 slotProps={{ inputLabel: { shrink: true } }}
@@ -305,6 +344,7 @@ const Compartir = ({ operacion }) => {
                 size="small"
                 fullWidth
                 value={url}
+                inputRef={campoEnlace}
                 slotProps={{ htmlInput: { readOnly: true } }}
                 onFocus={(e) => e.target.select()}
               />
@@ -316,11 +356,8 @@ const Compartir = ({ operacion }) => {
           )}
         </DialogContent>
         <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
-          <Button
-            startIcon={<ContentCopyIcon />}
-            onClick={() => navigator.clipboard?.writeText(url)}
-          >
-            Copiar
+          <Button startIcon={<ContentCopyIcon />} onClick={copiar}>
+            {copiado ? 'Copiado' : 'Copiar'}
           </Button>
           <Button
             startIcon={<WhatsAppIcon />}
@@ -338,6 +375,7 @@ const Compartir = ({ operacion }) => {
           </Button>
         </DialogActions>
       </Dialog>
+      {dialogoConfirmar}
     </Box>
   );
 };

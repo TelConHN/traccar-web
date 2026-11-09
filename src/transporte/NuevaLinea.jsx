@@ -30,6 +30,7 @@ import {
   ListItemButton,
   ListItemText,
   MenuItem,
+  Paper,
   Radio,
   Stack,
   Step,
@@ -39,6 +40,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
@@ -59,8 +61,9 @@ const useStyles = makeStyles()((theme) => ({
     flexGrow: 1,
     minHeight: 0,
     [theme.breakpoints.down('md')]: {
-      gridTemplateColumns: '1fr',
-      gridTemplateRows: 'minmax(220px, 38vh) 1fr',
+      gridTemplateColumns: 'minmax(0, 1fr)',
+      gridTemplateRows: 'minmax(260px, 42vh) auto',
+      minHeight: 'auto',
     },
   },
   panel: {
@@ -68,16 +71,41 @@ const useStyles = makeStyles()((theme) => ({
     overflow: 'auto',
     padding: theme.spacing(2),
     borderRight: `1px solid ${theme.palette.divider}`,
-    [theme.breakpoints.down('md')]: { borderRight: 'none', order: 2 },
+    [theme.breakpoints.down('md')]: {
+      borderRight: 'none',
+      order: 2,
+      overflow: 'visible',
+      minHeight: 'auto',
+    },
   },
   mapa: {
     position: 'relative',
     minHeight: 0,
     [theme.breakpoints.down('md')]: { order: 1 },
+    // Al saltar arriba al cambiar de paso, que no quede debajo de la fila de secciones.
+    scrollMarginTop: 64,
+  },
+  // Elegir un viaje o un archivo no usa el mapa: en el teléfono era medio pantalla de mapamundi
+  // vacío antes de lo único que había que hacer.
+  sinMapa: {
+    [theme.breakpoints.down('md')]: { gridTemplateRows: 'auto' },
+  },
+  mapaOculto: {
+    [theme.breakpoints.down('md')]: { display: 'none' },
+  },
+  aviso: {
+    position: 'absolute',
+    top: theme.spacing(2),
+    left: '50%',
+    transform: 'translateX(-50%)',
+    padding: theme.spacing(1, 2),
+    pointerEvents: 'none',
+    zIndex: 1,
+    [theme.breakpoints.down('md')]: { display: 'none' },
   },
 }));
 
-const PASOS = ['Elegir el viaje', 'Revisar el recorrido', 'Confirmar paradas'];
+const PASOS = ['Elegir el trazo', 'Revisar', 'Paradas'];
 
 const ayer = () => {
   const d = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -86,10 +114,18 @@ const ayer = () => {
 const hora = (iso) =>
   new Date(iso).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit' });
 const km = (m) => `${(m / 1000).toFixed(1)} km`;
+const diaAnterior = (f) => {
+  const d = new Date(`${f}T12:00:00`);
+  d.setDate(d.getDate() - 1);
+  return d.toLocaleDateString('en-CA');
+};
+const minutosEntre = (inicio, fin) => Math.round((new Date(fin) - new Date(inicio)) / 60000);
 
 const NuevaLinea = ({ vehiculos, operacion }) => {
-  const { classes } = useStyles();
+  const { classes, cx } = useStyles();
   const navigate = useNavigate();
+  const telefono = useMediaQuery((tema) => tema.breakpoints.down('md'));
+  const mapaRef = useRef(null);
 
   const [paso, setPaso] = useState(0);
   const [metodo, setMetodo] = useState('viaje');
@@ -117,6 +153,18 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
   const [varianteActiva, setVarianteActiva] = useState(0);
   const [usarSemana, setUsarSemana] = useState(false);
   const [viajesUsados, setViajesUsados] = useState(null);
+
+  const mapaEnUso = paso > 0 || metodo === 'paradas';
+  // Oculto no tiene tamaño: al volver a mostrarlo el mapa tiene que medirse de nuevo.
+  useEffect(() => {
+    if (mapaEnUso) map.resize();
+  }, [mapaEnUso, telefono]);
+
+  // En el teléfono baja toda la página: quien tocó «Continuar» abajo de la lista tiene que ver el
+  // recorrido que acaba de pedir, que está arriba, en el mapa.
+  useEffect(() => {
+    if (telefono && paso > 0) mapaRef.current?.scrollIntoView({ block: 'start' });
+  }, [paso, telefono]);
 
   const cargarViajes = async () => {
     if (!deviceId || !fecha) return;
@@ -352,7 +400,7 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
   const posiciones = useSelector((state) => state.session.positions);
   const hayPosiciones = vehiculos.some((v) => posiciones[v.id]);
   const encuadre = useMemo(() => {
-    if (!dibujandoDeCero) {
+    if (variantes.length && !dibujandoDeCero) {
       return variantes.flatMap((v) => v.coordenadas ?? []).map(([lat, lon]) => [lon, lat]);
     }
     const buses = vehiculos
@@ -369,7 +417,7 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
   }, [variantes, dibujandoDeCero, hayPosiciones]);
 
   return (
-    <div className={classes.contenedor}>
+    <div className={cx(classes.contenedor, !mapaEnUso && classes.sinMapa)}>
       <div className={classes.panel}>
         <Typography variant="h6" component="h1" fontWeight={600} sx={{ mb: 1.5 }}>
           Nuevo recorrido
@@ -399,11 +447,11 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
             >
               <ToggleButton value="viaje">
                 <DirectionsBusIcon fontSize="small" sx={{ mr: 0.5 }} />
-                Grabar un viaje
+                Viaje hecho
               </ToggleButton>
               <ToggleButton value="paradas">
                 <GestureIcon fontSize="small" sx={{ mr: 0.5 }} />
-                Dibujar en el mapa
+                Dibujar
               </ToggleButton>
               <ToggleButton value="importar">
                 <UploadFileIcon fontSize="small" sx={{ mr: 0.5 }} />
@@ -414,8 +462,8 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
             {metodo === 'viaje' && (
               <>
                 <Typography variant="body2" color="text.secondary">
-                  Elegí el bus y el día. Te mostramos los viajes que hizo, ya cortados: el recorrido
-                  sale de uno de ellos, no hay que dibujar nada.
+                  Elegí el bus y el día, y después uno de los viajes que hizo: el recorrido sale de
+                  ahí, sin dibujar nada.
                 </Typography>
                 <TextField
                   select
@@ -440,8 +488,15 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
                 />
                 {viajes === null && !error && <LinearProgress />}
                 {viajes && viajes.length === 0 && (
-                  <Alert severity="info">
-                    Ese día el bus no hizo ningún viaje de más de 500 m. Probá con otro día.
+                  <Alert
+                    severity="info"
+                    action={
+                      <Button size="small" onClick={() => setFecha(diaAnterior(fecha))}>
+                        Día anterior
+                      </Button>
+                    }
+                  >
+                    Ese día el bus no hizo ningún viaje de más de 500 m.
                   </Alert>
                 )}
                 {viajes && viajes.length > 0 && (
@@ -461,7 +516,7 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
                         />
                         <ListItemText
                           primary={`${hora(v.inicio)} → ${hora(v.fin)} · ${km(v.metros)}`}
-                          secondary={`${v.posiciones} posiciones${v.pareceIdaYVuelta ? ' · parece ida y vuelta' : ''}`}
+                          secondary={`${minutosEntre(v.inicio, v.fin)} min${v.pareceIdaYVuelta ? ' · parece ida y vuelta' : ''}`}
                         />
                       </ListItemButton>
                     ))}
@@ -475,7 +530,7 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
                         onChange={(e) => setCortarIdaVuelta(e.target.checked)}
                       />
                     }
-                    label="Cortar en la terminal: ida y vuelta como dos variantes"
+                    label="Separar la ida y la vuelta en dos sentidos"
                   />
                 )}
                 <Button
@@ -483,7 +538,7 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
                   disabled={viajeElegido === null || trabajando}
                   onClick={ajustarViaje}
                 >
-                  Ajustar a la calle
+                  Continuar
                 </Button>
               </>
             )}
@@ -564,20 +619,30 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
 
         {paso === 1 && activa && !corrigiendo && (
           <Stack spacing={2}>
+            <TextField
+              label="Nombre del recorrido"
+              size="small"
+              required
+              // En el teléfono, abrir el teclado taparía el recorrido que hay que revisar.
+              autoFocus={!telefono}
+              placeholder="Ruta 3 · Colonia Kennedy"
+              helperText={nombre.trim() ? ' ' : 'Hace falta para seguir.'}
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+            />
             {ajusteDudoso ? (
               <Alert severity="warning">
                 {activa.partido
-                  ? 'El ajuste salió partido: hubo un hueco de señal o una zona con mapa pobre. '
-                  : `El ajuste tiene confianza ${Math.round((activa.confianza ?? 0) * 100)}%. `}
-                El trazo crudo del GPS se muestra punteado para comparar. Si el recorrido está mal,
+                  ? 'El trazo quedó con un corte: el GPS perdió señal o el mapa tiene poco detalle ahí. '
+                  : 'Puede que el trazo no siga exactamente las calles. '}
+                Lo punteado es lo que grabó el GPS, para comparar. Si está mal, corregí la calle o
                 volvé atrás y elegí otro viaje.
               </Alert>
             ) : (
               <Alert severity="success">
                 Recorrido de {km(activa.metros)}
-                {activa.confianza != null && ` · confianza ${Math.round(activa.confianza * 100)}%`}
-                {activa.corregida && ' · corregido a mano'}. Revisá que vaya por las calles
-                correctas.
+                {activa.corregida && ' · corregido a mano'}. Revisá en el mapa que vaya por las
+                calles correctas.
               </Alert>
             )}
             <Button
@@ -604,23 +669,15 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
               </ToggleButtonGroup>
             )}
             <TextField
-              label="Nombre del recorrido"
-              size="small"
-              autoFocus
-              placeholder="Ruta 3 · Colonia Kennedy"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-            />
-            <TextField
               select
-              label="Ancho de tolerancia para desvíos"
+              label="Cuánto puede alejarse sin contar como desvío"
               size="small"
               value={anchoMetros}
               onChange={(e) => setAnchoMetros(Number(e.target.value))}
             >
               <MenuItem value={60}>60 m — ciudad</MenuItem>
               <MenuItem value={100}>100 m — carretera</MenuItem>
-              <MenuItem value={150}>150 m — zona sin mapa detallado</MenuItem>
+              <MenuItem value={150}>150 m — zona con poco detalle en el mapa</MenuItem>
             </TextField>
             {metodo === 'viaje' && (
               <FormControlLabel
@@ -715,11 +772,23 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
                 Guardar recorrido
               </Button>
             </Stack>
+            {/* Un botón apagado sin motivo parece roto. */}
+            {variantes.some((v) => v.paradas.length === 0) && (
+              <Typography variant="caption" color="text.secondary">
+                Para guardarlo, {variantes.length > 1 ? 'cada sentido necesita' : 'necesita'} al
+                menos una parada: tocá la línea en el mapa.
+              </Typography>
+            )}
           </Stack>
         )}
       </div>
 
-      <div className={classes.mapa}>
+      <div className={cx(classes.mapa, !mapaEnUso && classes.mapaOculto)} ref={mapaRef}>
+        {!mapaEnUso && (
+          <Paper className={classes.aviso}>
+            <Typography variant="body2">Acá vas a ver el recorrido cuando sigas.</Typography>
+          </Paper>
+        )}
         <MapView>
           {!dibujandoDeCero &&
             variantes.map((v, i) => {

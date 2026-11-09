@@ -5,6 +5,7 @@
 // o más horarios con la parada donde sube. Hermanos comparten contacto: un solo enlace para la
 // familia con una tarjeta por cada uno.
 import { useState } from 'react';
+import { useConfirmar } from '../servicios/Confirmar';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import {
@@ -57,6 +58,7 @@ const COLUMNAS = [
 ];
 
 const Pasajeros = ({ operacion }) => {
+  const [confirmar, dialogoConfirmar] = useConfirmar();
   const op = OPERACIONES[operacion];
   const palabras = op?.pasajeros ?? { plural: 'Pasajeros', singular: 'pasajero' };
 
@@ -274,7 +276,7 @@ const Pasajeros = ({ operacion }) => {
   const opcionDe = (turnoId) => opciones.find((o) => o.id === turnoId);
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1000 }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1280 }}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={1.5}
@@ -389,12 +391,18 @@ const Pasajeros = ({ operacion }) => {
                       <Tooltip title="Dar de baja (corta su enlace al instante)">
                         <IconButton
                           size="small"
-                          onClick={() =>
+                          onClick={async () => {
+                            const ok = await confirmar({
+                              titulo: `Dar de baja a ${p.nombre}`,
+                              detalle: 'Su enlace de seguimiento deja de funcionar al instante.',
+                              accion: 'Dar de baja',
+                            });
+                            if (!ok) return;
                             accion(
                               () => transporteApi.borrarPasajero(p.id),
                               `${p.nombre} quedó dado de baja.`,
-                            )
-                          }
+                            );
+                          }}
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
@@ -472,12 +480,18 @@ const Pasajeros = ({ operacion }) => {
                     </IconButton>
                     <IconButton
                       size="small"
-                      onClick={() =>
+                      onClick={async () => {
+                        const ok = await confirmar({
+                          titulo: `Dar de baja el grupo ${g.nombre}`,
+                          detalle: 'El grupo deja de aparecer en la lista.',
+                          accion: 'Dar de baja',
+                        });
+                        if (!ok) return;
                         accion(
                           () => transporteApi.borrarGrupo(g.id),
                           `El grupo ${g.nombre} quedó dado de baja.`,
-                        )
-                      }
+                        );
+                      }}
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
@@ -806,6 +820,7 @@ const Pasajeros = ({ operacion }) => {
           </Button>
         </DialogActions>
       </Dialog>
+      {dialogoConfirmar}
     </Box>
   );
 };

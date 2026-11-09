@@ -14,6 +14,9 @@ const TITULO_DE_SECCION = [
   'contenido',
 ];
 
+const SECCIONES_EN_EL_TELEFONO =
+  'En el teléfono las secciones están en esta fila de arriba: deslizala con el dedo para ver todas.';
+
 const CONSEJOS_TRANSPORTE = {
   hoy: 'Cada bus es un punto sobre la tira de su recorrido: verde va bien, ámbar va atrás, rojo se desvió, gris no tiene datos. Tocá un bus para ver su viaje.',
   recorridos:
@@ -56,9 +59,9 @@ export function pasosTransporte({ operacion, configura, demo }) {
       texto:
         'De arriba hacia abajo: lo que mirás todo el día, lo que armás una vez y lo que compartís y revisás.',
       objetivo: 'menu',
-      // En el teléfono el menú vive detrás de ☰: se señala el botón que lo abre.
-      objetivoMovil: 'abrir-menu',
-      consejoMovil: 'En el teléfono el menú se abre con ☰, arriba a la izquierda.',
+      // En el teléfono las secciones van en la fila de arriba; ☰ solo si esa fila no está.
+      objetivoMovil: ['secciones-movil', 'abrir-menu'],
+      consejoMovil: SECCIONES_EN_EL_TELEFONO,
     },
   ];
   const ocultasParaConductor = new Set([
@@ -109,9 +112,8 @@ export function pasosRutas({ planifica, gestionaUsuarios, demo }) {
       titulo: 'Las secciones',
       texto: 'Planificar, ver lo cargado, tu gente y los avisos.',
       objetivo: 'menu',
-      // En el teléfono el menú vive detrás de ☰: se señala el botón que lo abre.
-      objetivoMovil: 'abrir-menu',
-      consejoMovil: 'En el teléfono el menú se abre con ☰, arriba a la izquierda.',
+      objetivoMovil: ['secciones-movil', 'abrir-menu'],
+      consejoMovil: SECCIONES_EN_EL_TELEFONO,
     },
   ];
   if (!planifica) return pasos;
@@ -120,7 +122,7 @@ export function pasosRutas({ planifica, gestionaUsuarios, demo }) {
       etiqueta: 'Sección',
       titulo: 'Mis rutas',
       texto:
-        'Tus rutas guardadas para repetir («Reparto norte, lunes y jueves») y la libreta de direcciones que se llena sola.',
+        'Tus rutas guardadas para repetir («Reparto norte, lunes y jueves») y los puntos guardados, que se llenan solos con el uso.',
       ruta: '/rutas',
       objetivo: 'contenido',
       objetivoMovil: TITULO_DE_SECCION,
@@ -129,7 +131,7 @@ export function pasosRutas({ planifica, gestionaUsuarios, demo }) {
       etiqueta: 'Sección',
       titulo: 'Planificar',
       texto:
-        'Tocá el mapa en cada parada (o elegila de la libreta). Antes de guardar ves cuántos kilómetros y minutos te ahorra el orden que propone el sistema.',
+        'Tocá el mapa en cada parada (o elegila de «Puntos guardados»). Antes de guardar ves cuántos kilómetros y minutos te ahorra el orden que propone el sistema.',
       consejo:
         'Si el vehículo ya tiene otra ruta ese día, se ve en la línea del día y podés encadenarla.',
       ruta: '/rutas/planificar',

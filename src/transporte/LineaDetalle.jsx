@@ -8,6 +8,7 @@
 // la calle equivocada. Al guardar, el servidor reubica paradas, tramos de velocidad y cierres
 // autorizados sobre la línea nueva.
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useConfirmar } from '../servicios/Confirmar';
 import { useNavigate } from 'react-router-dom';
 import { makeStyles } from 'tss-react/mui';
 import {
@@ -56,8 +57,9 @@ const useStyles = makeStyles()((theme) => ({
     flexGrow: 1,
     minHeight: 0,
     [theme.breakpoints.down('md')]: {
-      gridTemplateColumns: '1fr',
-      gridTemplateRows: 'minmax(220px, 38vh) 1fr',
+      gridTemplateColumns: 'minmax(0, 1fr)',
+      gridTemplateRows: 'minmax(260px, 42vh) auto',
+      minHeight: 'auto',
     },
   },
   panel: {
@@ -65,7 +67,12 @@ const useStyles = makeStyles()((theme) => ({
     overflow: 'auto',
     padding: theme.spacing(2),
     borderRight: `1px solid ${theme.palette.divider}`,
-    [theme.breakpoints.down('md')]: { borderRight: 'none', order: 2 },
+    [theme.breakpoints.down('md')]: {
+      borderRight: 'none',
+      order: 2,
+      overflow: 'visible',
+      minHeight: 'auto',
+    },
   },
   mapa: { position: 'relative', minHeight: 0, [theme.breakpoints.down('md')]: { order: 1 } },
 }));
@@ -82,6 +89,7 @@ const metrosEntre = ([la1, lo1], [la2, lo2]) =>
 const esCircuito = (g) => g?.length > 2 && metrosEntre(g[0], g[g.length - 1]) < 150;
 
 const LineaDetalle = ({ lineaId, puedeEditar, operacion, limitador = false }) => {
+  const [confirmar, dialogoConfirmar] = useConfirmar();
   const { classes } = useStyles();
   const navigate = useNavigate();
   const [linea, setLinea] = useState(null);
@@ -455,8 +463,12 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion, limitador = false }) =>
                     <TableRow>
                       <TableCell>#</TableCell>
                       <TableCell>Parada</TableCell>
-                      <TableCell align="right">Km</TableCell>
-                      <TableCell align="right">Radio</TableCell>
+                      <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                        Km
+                      </TableCell>
+                      <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                        Radio
+                      </TableCell>
                       {puedeEditar && <TableCell />}
                     </TableRow>
                   </TableHead>
@@ -466,7 +478,20 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion, limitador = false }) =>
                         <TableCell>{p.orden}</TableCell>
                         <TableCell>
                           {p.nombre}
-                          <Stack direction="row" spacing={0.5} sx={{ mt: 0.25 }}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: { xs: 'block', md: 'none' } }}
+                          >
+                            km {(p.metroEnLinea / 1000).toFixed(1)} · radio {p.radioMetros} m
+                          </Typography>
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            useFlexGap
+                            flexWrap="wrap"
+                            sx={{ mt: 0.25 }}
+                          >
                             {p.terminal && <Chip size="small" color="error" label="Terminal" />}
                             {!p.obligatoria && (
                               <Chip size="small" variant="outlined" label="Opcional" />
@@ -480,8 +505,12 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion, limitador = false }) =>
                             )}
                           </Stack>
                         </TableCell>
-                        <TableCell align="right">{(p.metroEnLinea / 1000).toFixed(1)}</TableCell>
-                        <TableCell align="right">{p.radioMetros} m</TableCell>
+                        <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {(p.metroEnLinea / 1000).toFixed(1)}
+                        </TableCell>
+                        <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                          {p.radioMetros} m
+                        </TableCell>
                         {puedeEditar && (
                           <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                             <Tooltip title="Editar">
@@ -492,9 +521,15 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion, limitador = false }) =>
                             <Tooltip title="Quitar">
                               <IconButton
                                 size="small"
-                                onClick={() =>
-                                  accion(() => transporteApi.borrarParada(linea.id, p.id))
-                                }
+                                onClick={async () => {
+                                  const ok = await confirmar({
+                                    titulo: `Quitar «${p.nombre}»`,
+                                    detalle:
+                                      'Sale del recorrido. Quien sube ahí queda sin parada asignada y los viajes ya hechos dejan de mostrarla.',
+                                    accion: 'Quitar',
+                                  });
+                                  if (ok) accion(() => transporteApi.borrarParada(linea.id, p.id));
+                                }}
                               >
                                 <DeleteIcon fontSize="small" />
                               </IconButton>
@@ -526,12 +561,18 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion, limitador = false }) =>
               <Button
                 color="error"
                 size="small"
-                onClick={() =>
+                onClick={async () => {
+                  const ok = await confirmar({
+                    titulo: `Desactivar «${linea.nombre}»`,
+                    detalle: 'Deja de aparecer en la lista de recorridos.',
+                    accion: 'Desactivar',
+                  });
+                  if (!ok) return;
                   accion(async () => {
                     await transporteApi.borrarLinea(linea.id);
                     navigate('/transporte/recorridos');
-                  })
-                }
+                  });
+                }}
               >
                 Desactivar recorrido
               </Button>
@@ -665,6 +706,7 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion, limitador = false }) =>
           </Button>
         </DialogActions>
       </Dialog>
+      {dialogoConfirmar}
     </div>
   );
 };

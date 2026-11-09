@@ -12,16 +12,24 @@ const BASE = '/api/rutas';
 // Cada petición lleva el cliente que eligió un administrador, si eligió uno. El servidor la ignora
 // si quien pide no es administrador (ver servicios/clienteAdmin.js).
 const pedir = async (ruta, opciones = {}) => {
-  const respuesta = await fetch(`${BASE}${ruta}`, {
-    ...opciones,
-    headers: { 'Content-Type': 'application/json', ...cabeceraClienteAdmin() },
-  });
+  let respuesta;
+  try {
+    respuesta = await fetch(`${BASE}${ruta}`, {
+      ...opciones,
+      headers: { 'Content-Type': 'application/json', ...cabeceraClienteAdmin() },
+    });
+  } catch {
+    // Sin esto, la persona leía «Failed to fetch», en inglés y sin saber qué hacer.
+    throw new Error('No hay conexión con el servicio. Revisá tu internet y probá de nuevo.');
+  }
   if (!respuesta.ok) {
     let mensaje = await respuesta.text();
     try {
       mensaje = JSON.parse(mensaje).error ?? mensaje;
     } catch {
-      /* el cuerpo no era JSON: se muestra tal cual */
+      // El cuerpo no era JSON: la respuesta no vino del servicio sino de lo que tiene delante, y
+      // ese texto («HTTP 404 Not Found») no le dice nada a quien está usando la pantalla.
+      mensaje = `El servicio no está respondiendo (código ${respuesta.status}). Probá de nuevo en un momento.`;
     }
     throw new Error(mensaje);
   }

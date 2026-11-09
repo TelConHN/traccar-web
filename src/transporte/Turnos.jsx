@@ -5,6 +5,7 @@
 // un segundo, dos bloques encimados, en vez de leer dos horas y compararlas en la cabeza. El
 // servidor lo rechaza igual (409) por si acaso.
 import { useEffect, useState } from 'react';
+import { useConfirmar } from '../servicios/Confirmar';
 import {
   Alert,
   Box,
@@ -70,6 +71,7 @@ const diasTexto = (dias) => {
 };
 
 const Turnos = ({ perfil }) => {
+  const [confirmar, dialogoConfirmar] = useConfirmar();
   const [turnos, setTurnos] = useState(null);
   const [lineas, setLineas] = useState([]);
   const [grupos, setGrupos] = useState([]);
@@ -167,6 +169,12 @@ const Turnos = ({ perfil }) => {
   };
 
   const borrar = async (t) => {
+    const ok = await confirmar({
+      titulo: 'Quitar este horario',
+      detalle: 'El bus deja de tener este turno y el conductor ya no lo ve en su día.',
+      accion: 'Quitar',
+    });
+    if (!ok) return;
     try {
       await transporteApi.borrarTurno(t.id);
       await cargar();
@@ -190,7 +198,7 @@ const Turnos = ({ perfil }) => {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 900 }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1280 }}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={1.5}
@@ -408,7 +416,8 @@ const Turnos = ({ perfil }) => {
                 <TextField
                   select
                   size="small"
-                  label="Grupos que atiende (para enlaces de grupo)"
+                  label="Grupos que atiende"
+                  helperText="Para los enlaces de grupo"
                   value={dialogo.grupoIds ?? []}
                   onChange={(e) => setDialogo({ ...dialogo, grupoIds: e.target.value })}
                   slotProps={{ select: { multiple: true } }}
@@ -456,6 +465,7 @@ const Turnos = ({ perfil }) => {
           </Button>
         </DialogActions>
       </Dialog>
+      {dialogoConfirmar}
     </Box>
   );
 };

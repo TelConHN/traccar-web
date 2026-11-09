@@ -122,7 +122,7 @@ const AgregarParadasDialog = ({ open, jornada, puntos, onClose, onAplicado }) =>
           <TextField
             size="small"
             fullWidth
-            placeholder="Buscar un punto de la libreta"
+            placeholder="Buscar un punto guardado"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             slotProps={{
@@ -153,7 +153,7 @@ const AgregarParadasDialog = ({ open, jornada, puntos, onClose, onAplicado }) =>
             ))}
             {disponibles.length === 0 && (
               <Typography variant="caption" color="text.secondary">
-                No hay más puntos en la libreta. Agregalos desde «Planificar».
+                No hay más puntos guardados. Se guardan solos al planificar una ruta.
               </Typography>
             )}
           </Stack>
@@ -243,7 +243,11 @@ const AgregarParadasDialog = ({ open, jornada, puntos, onClose, onAplicado }) =>
                                 label="cargar"
                                 color="warning"
                                 variant="outlined"
-                                sx={{ ml: 1, height: 18, fontSize: '0.62rem' }}
+                                sx={{
+                                  ml: 1,
+                                  height: { xs: 24, md: 20 },
+                                  fontSize: { xs: '0.75rem', md: '0.6875rem' },
+                                }}
                               />
                             )}
                             {p.esNueva && (
@@ -251,7 +255,11 @@ const AgregarParadasDialog = ({ open, jornada, puntos, onClose, onAplicado }) =>
                                 size="small"
                                 label="nueva"
                                 color="primary"
-                                sx={{ ml: 1, height: 18, fontSize: '0.62rem' }}
+                                sx={{
+                                  ml: 1,
+                                  height: { xs: 24, md: 20 },
+                                  fontSize: { xs: '0.75rem', md: '0.6875rem' },
+                                }}
                               />
                             )}
                           </>

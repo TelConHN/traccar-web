@@ -9,6 +9,7 @@
 // de guardar llega tarde, la persona ya decidió.
 import { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { makeStyles } from 'tss-react/mui';
 import {
   Button,
@@ -72,8 +73,9 @@ const useStyles = makeStyles()((theme) => ({
     // En pantalla angosta se apilan y el mapa va arriba: en un telefono, tocar el mapa es lo
     // primero que se hace.
     [theme.breakpoints.down('md')]: {
-      gridTemplateColumns: '1fr',
-      gridTemplateRows: 'minmax(220px, 38vh) 1fr',
+      gridTemplateColumns: 'minmax(0, 1fr)',
+      gridTemplateRows: 'minmax(260px, 42vh) auto',
+      minHeight: 'auto',
     },
   },
   panel: {
@@ -81,7 +83,12 @@ const useStyles = makeStyles()((theme) => ({
     overflow: 'auto',
     padding: theme.spacing(2),
     borderRight: `1px solid ${theme.palette.divider}`,
-    [theme.breakpoints.down('md')]: { borderRight: 'none', order: 2 },
+    [theme.breakpoints.down('md')]: {
+      borderRight: 'none',
+      order: 2,
+      overflow: 'visible',
+      minHeight: 'auto',
+    },
   },
   mapa: {
     position: 'relative',
@@ -102,7 +109,7 @@ const useStyles = makeStyles()((theme) => ({
     lineHeight: 1.2,
     fontVariantNumeric: 'tabular-nums',
   },
-  etiqueta: { textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.68rem' },
+  etiqueta: { textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.72rem' },
   tachado: { textDecoration: 'line-through', opacity: 0.7 },
   numero: { width: 30, height: 30, fontSize: '0.82rem', fontWeight: 600 },
   campos: {
@@ -165,6 +172,9 @@ const TAMANOS = [
 ];
 
 const ORDEN_DISPO = { libre: 0, fuera_de_horario: 1, ocupado: 2 };
+
+// Cuántos puntos guardados se ven de entrada: con treinta, la lista empujaba todo lo demás abajo.
+const LIBRETA_INICIAL = 8;
 
 /**
  * Libre, ocupado o fuera de horario, con color y con palabras: el color solo no alcanza, y en el
@@ -326,6 +336,7 @@ const PlanificarRuta = ({
   onCambio,
 }) => {
   const { classes, cx } = useStyles();
+  const navigate = useNavigate();
   const escritorio = useMediaQuery((theme) => theme.breakpoints.up('md'));
 
   const [nombre, setNombre] = useState('');
@@ -377,6 +388,8 @@ const PlanificarRuta = ({
   // Con veinte o treinta puntos guardados, la lista de fichas deja de servir para encontrar
   // uno. Se busca por nombre, como en cualquier otro lado.
   const [busquedaPunto, setBusquedaPunto] = useState('');
+  const [libretaCompleta, setLibretaCompleta] = useState(false);
+  const [despachadaAviso, setDespachadaAviso] = useState(null);
 
   // Última posición del vehículo elegido, para abrir el mapa donde el cliente trabaja en vez
   // del planisferio completo.
@@ -429,10 +442,21 @@ const PlanificarRuta = ({
   // En un teléfono el panel va debajo del mapa y puede estar bajado: al abrir el formulario se
   // sube, para que se vea sin buscarlo.
   const panelRef = useRef(null);
+  const formularioRef = useRef(null);
   const abierto = Boolean(nuevo);
   useEffect(() => {
-    if (abierto) panelRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [abierto]);
+    if (!abierto) return;
+    if (escritorio) {
+      panelRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    // En el teléfono baja toda la página, y el mapa tiene que seguir a la vista para corregir el
+    // punto: solo se mueve si el formulario quedó fuera de la pantalla (teléfono acostado).
+    const caja = formularioRef.current?.getBoundingClientRect();
+    if (caja && caja.top > window.innerHeight - 180) {
+      formularioRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [abierto, escritorio]);
 
   // Con dos o más paradas la ruta se mide sola, sin guardar nada. Va con medio segundo de
   // respiro para no llamar al motor en cada clic mientras se reordena la lista.
@@ -712,6 +736,9 @@ const PlanificarRuta = ({
     setOcupado(true);
     try {
       await rutasApi.despachar(resultado.id);
+      setDespachadaAviso(
+        `«${resultado.nombre || nombre.trim() || 'La ruta'}» salió${conductor ? ': el conductor ya la ve en su teléfono.' : '. Queda vigilada por GPS.'}`,
+      );
       setSeleccion([]);
       setNombre('');
       limpiarCalculo();
@@ -826,6 +853,14 @@ const PlanificarRuta = ({
   const fuera = fueraDeHorario(fecha, horaSalida, minutos, conductorElegido);
   const paso = resultado ? 2 : seleccion.length >= 2 ? 1 : 0;
 
+  const libreta = puntos.filter(
+    (p) =>
+      !seleccion.includes(p.id) &&
+      p.nombre.toLowerCase().includes(busquedaPunto.trim().toLowerCase()),
+  );
+  const libretaVisible =
+    libretaCompleta || busquedaPunto.trim() ? libreta : libreta.slice(0, LIBRETA_INICIAL);
+
   return (
     <div className={classes.contenedor}>
       <div className={classes.panel} ref={panelRef}>
@@ -833,7 +868,7 @@ const PlanificarRuta = ({
           {/* Va en el panel y no en un diálogo: un diálogo tapa el mapa, y es justo el mapa lo que
               hay que mirar —y tocar— para corregir dónde cayó el punto. */}
           {nuevo && (
-            <Paper variant="outlined" className={classes.puntoNuevo}>
+            <Paper variant="outlined" className={classes.puntoNuevo} ref={formularioRef}>
               <Stack spacing={2}>
                 <div>
                   <Typography variant="subtitle1">Parada nueva</Typography>
@@ -899,13 +934,23 @@ const PlanificarRuta = ({
               y seis campos: sin decir en qué orden se usan, el cliente no adivina. */}
           <Stepper activeStep={paso} sx={{ px: 0 }}>
             <Step>
-              <StepLabel slotProps={{ label: { sx: { fontSize: '0.76rem' } } }}>Paradas</StepLabel>
+              <StepLabel
+                slotProps={{ label: { sx: { fontSize: { xs: '0.8125rem', md: '0.76rem' } } } }}
+              >
+                Paradas
+              </StepLabel>
             </Step>
             <Step>
-              <StepLabel slotProps={{ label: { sx: { fontSize: '0.76rem' } } }}>Datos</StepLabel>
+              <StepLabel
+                slotProps={{ label: { sx: { fontSize: { xs: '0.8125rem', md: '0.76rem' } } } }}
+              >
+                Datos
+              </StepLabel>
             </Step>
             <Step>
-              <StepLabel slotProps={{ label: { sx: { fontSize: '0.76rem' } } }}>
+              <StepLabel
+                slotProps={{ label: { sx: { fontSize: { xs: '0.8125rem', md: '0.76rem' } } } }}
+              >
                 Despachar
               </StepLabel>
             </Step>
@@ -921,6 +966,313 @@ const PlanificarRuta = ({
             </Alert>
           )}
 
+          {/* Sin esto el formulario se vaciaba y nada decía que la ruta había salido. */}
+          {despachadaAviso && seleccion.length === 0 && (
+            <Alert
+              severity="success"
+              onClose={() => setDespachadaAviso(null)}
+              action={
+                <Button size="small" onClick={() => navigate('/rutas/cargadas')}>
+                  Verla
+                </Button>
+              }
+            >
+              {despachadaAviso}
+            </Alert>
+          )}
+
+          <Typography variant="subtitle1" fontWeight={600}>
+            Paradas
+          </Typography>
+          <Paper variant="outlined">
+            <List dense disablePadding>
+              {elegidos.map((p, i) => (
+                <ListItem
+                  key={p.id}
+                  divider={i < elegidos.length - 1}
+                  secondaryAction={
+                    <>
+                      {!resultado && (
+                        <Tooltip title="Subir">
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => mover(i, -1)}
+                              disabled={i === 0}
+                            >
+                              <ArrowUpwardIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      )}
+                      {!resultado && (
+                        <Tooltip title="Bajar">
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => mover(i, 1)}
+                              disabled={i === elegidos.length - 1}
+                            >
+                              <ArrowDownwardIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      )}
+                      <Tooltip title="Quitar de la ruta">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setSeleccion((s) => s.filter((x) => x !== p.id));
+                            limpiarCalculo();
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </>
+                  }
+                >
+                  <ListItemAvatar sx={{ minWidth: 46 }}>
+                    <Avatar
+                      className={cx(classes.numero, i === 0 ? classes.salida : classes.parada)}
+                    >
+                      {i + 1}
+                    </Avatar>
+                  </ListItemAvatar>
+                  {/* Margen para las tres acciones de la derecha (subir, bajar, quitar). La
+                      lista reserva lugar para UNA; con tres, el texto quedaba debajo de las
+                      flechas y «llega 08:04» se leía «llega 08:0↑». */}
+                  <ListItemText
+                    sx={{ mr: resultado ? 0 : 8 }}
+                    primary={
+                      i === 0 ? (
+                        <>
+                          {p.nombre}
+                          <Chip
+                            size="small"
+                            label="Salida"
+                            color="success"
+                            variant="outlined"
+                            sx={{
+                              ml: 1,
+                              height: { xs: 24, md: 20 },
+                              fontSize: { xs: '0.75rem', md: '0.6875rem' },
+                            }}
+                          />
+                        </>
+                      ) : (
+                        p.nombre
+                      )
+                    }
+                    secondary={
+                      i === 0
+                        ? `Sale ${horaDe(p.id) ?? horaSalida}${
+                            viajeHasta(elegidos[1]?.id)
+                              ? ` · ${viajeHasta(elegidos[1].id)} min hasta la primera parada`
+                              : ''
+                          }`
+                        : horaDe(p.id)
+                          ? `${viajeHasta(p.id)} min de viaje · llega ${horaDe(p.id)} · se va ${horaMasMin(fecha, horaDe(p.id), p.minutosEnSitio)}`
+                          : `${p.minutosEnSitio} min en el punto`
+                    }
+                  />
+                </ListItem>
+              ))}
+              {regreso && elegidos.length >= 2 && (
+                <ListItem>
+                  <ListItemAvatar sx={{ minWidth: 46 }}>
+                    <Avatar className={cx(classes.numero, classes.salida)}>
+                      <FlagIcon fontSize="small" />
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={`Regresa a ${elegidos[0].nombre}`}
+                    secondary={`Llega ${regreso} · el vehículo queda libre`}
+                  />
+                </ListItem>
+              )}
+              {elegidos.length === 0 && (
+                <ListItem>
+                  <ListItemText
+                    primary="Todavía no agregaste paradas"
+                    secondary="Cada punto que agregues queda guardado para las próximas rutas."
+                  />
+                </ListItem>
+              )}
+            </List>
+          </Paper>
+
+          {/* Qué pasó al ordenar. Si el orden ya era el mejor, también se dice: si no, parece
+              que el botón no hizo nada. */}
+          {ahorro && !resultado && (
+            <Typography variant="caption" color={hayAhorro ? 'success.main' : 'text.secondary'}>
+              {hayAhorro
+                ? `Ordenada: ${ahorro.km} km menos que en el orden en que las marcaste. La salida quedó primera.`
+                : 'Tu orden ya era el más corto. No hubo que mover nada.'}
+            </Typography>
+          )}
+
+          {seleccion.length > 0 && (
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              {/* Con menos de tres no hay nada que ordenar: la primera es la salida y no se mueve. */}
+              {seleccion.length >= 3 && !resultado && (
+                <Tooltip title="La parada 1 es la salida y no se mueve. Las demás se acomodan por el camino más corto.">
+                  <Button
+                    variant="outlined"
+                    startIcon={<TrendingDownIcon />}
+                    disabled={ordenando || ocupado}
+                    onClick={ordenar}
+                  >
+                    {ordenando ? 'Ordenando…' : 'Ordenar ruta'}
+                  </Button>
+                </Tooltip>
+              )}
+              <Button
+                onClick={() => {
+                  setSeleccion([]);
+                  limpiarCalculo();
+                }}
+                disabled={ocupado}
+              >
+                Limpiar
+              </Button>
+            </Stack>
+          )}
+
+          {/* Las cifras de la jornada. Aparecen con la segunda parada: responden «¿cuánto me
+              cuesta este día?» antes de comprometerse con nada. */}
+          {(vistaPrevia || resultado) && (
+            <Paper variant="outlined">
+              {calculando && <LinearProgress />}
+              <div className={classes.cifras}>
+                <div className={classes.cifra}>
+                  <Typography className={classes.etiqueta} color="text.secondary">
+                    Distancia
+                  </Typography>
+                  <Typography className={classes.valor}>{km} km</Typography>
+                  {hayAhorro && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      className={classes.tachado}
+                    >
+                      {ahorro.antesKm} km en tu orden
+                    </Typography>
+                  )}
+                </div>
+                <div className={classes.cifra}>
+                  <Typography className={classes.etiqueta} color="text.secondary">
+                    En ruta
+                  </Typography>
+                  <Typography className={classes.valor}>{duracion(minutos)}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    incluye el tiempo en cada punto
+                  </Typography>
+                </div>
+                <div className={classes.cifra}>
+                  <Typography className={classes.etiqueta} color="text.secondary">
+                    Regreso
+                  </Typography>
+                  <Typography className={classes.valor}>{regreso ?? '—'}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    el vehículo queda libre
+                  </Typography>
+                </div>
+                {hayAhorro && (
+                  <div className={classes.cifra}>
+                    <Typography className={classes.etiqueta} color="success.main">
+                      Ahorro
+                    </Typography>
+                    <Typography className={cx(classes.valor)} color="success.main">
+                      −{ahorro.km} km
+                    </Typography>
+                    <Typography variant="caption" color="success.main">
+                      {ahorro.min > 0 ? `${ahorro.min} min menos` : 'mismo tiempo'}
+                    </Typography>
+                  </div>
+                )}
+              </div>
+            </Paper>
+          )}
+
+          {/* Las dos formas rápidas de agregar paradas, junto a la lista: antes estaban al final de
+              todo, debajo del botón de guardar, y nadie las encontraba. */}
+          {(plantillas.length > 0 || seleccion.length >= 2) && (
+            <>
+              <Typography variant="subtitle2">Rutas guardadas</Typography>
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                {plantillas.map((pl) => (
+                  <Chip
+                    key={pl.id}
+                    label={`${pl.nombre} · ${pl.puntos.length}`}
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => {
+                      setSeleccion(pl.puntos.map((x) => x.id));
+                      setNombre(pl.nombre);
+                      limpiarCalculo();
+                    }}
+                  />
+                ))}
+                {seleccion.length >= 2 && (
+                  <Chip
+                    icon={<BookmarkAddIcon />}
+                    color={plantillaEditada ? 'primary' : 'default'}
+                    label={plantillaEditada ? 'Guardar cambios' : 'Guardar esta ruta'}
+                    onClick={() => setGuardarPlantilla(nombre || '')}
+                  />
+                )}
+              </Stack>
+            </>
+          )}
+
+          {puntos.length > 0 && (
+            <>
+              <Stack direction="row" spacing={1} alignItems="baseline">
+                <Typography variant="subtitle2">Puntos guardados</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  tocá uno para agregarlo
+                </Typography>
+              </Stack>
+              {puntos.length > LIBRETA_INICIAL && (
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder="Buscar un punto guardado"
+                  value={busquedaPunto}
+                  onChange={(e) => setBusquedaPunto(e.target.value)}
+                  slotProps={{
+                    input: { startAdornment: <SearchIcon fontSize="small" sx={{ mr: 1 }} /> },
+                  }}
+                />
+              )}
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                {libretaVisible.map((p) => (
+                  <Chip
+                    key={p.id}
+                    label={p.nombre}
+                    icon={<AddIcon />}
+                    variant="outlined"
+                    onClick={() => {
+                      setSeleccion((s) => [...s, p.id]);
+                      limpiarCalculo();
+                    }}
+                  />
+                ))}
+                {libretaVisible.length < libreta.length && (
+                  <Chip
+                    label={`Ver los ${libreta.length}`}
+                    onClick={() => setLibretaCompleta(true)}
+                  />
+                )}
+              </Stack>
+            </>
+          )}
+
+          <Divider />
+          <Typography variant="subtitle1" fontWeight={600}>
+            Datos de la ruta
+          </Typography>
           {/* Lo primero que hay que saber de una ruta, porque cambia todo lo demás.
               Van como dos tarjetas y no como un interruptor con dos palabras: «paquetes» y
               «recorrido» no le dicen nada a quien entra por primera vez — el ejemplo sí. */}
@@ -1169,176 +1521,6 @@ const PlanificarRuta = ({
             </Paper>
           )}
 
-          {/* Las cifras de la jornada. Aparecen con la segunda parada: responden «¿cuánto me
-              cuesta este día?» antes de comprometerse con nada. */}
-          {(vistaPrevia || resultado) && (
-            <Paper variant="outlined">
-              {calculando && <LinearProgress />}
-              <div className={classes.cifras}>
-                <div className={classes.cifra}>
-                  <Typography className={classes.etiqueta} color="text.secondary">
-                    Distancia
-                  </Typography>
-                  <Typography className={classes.valor}>{km} km</Typography>
-                  {hayAhorro && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      className={classes.tachado}
-                    >
-                      {ahorro.antesKm} km en tu orden
-                    </Typography>
-                  )}
-                </div>
-                <div className={classes.cifra}>
-                  <Typography className={classes.etiqueta} color="text.secondary">
-                    En ruta
-                  </Typography>
-                  <Typography className={classes.valor}>{duracion(minutos)}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    incluye el tiempo en cada punto
-                  </Typography>
-                </div>
-                <div className={classes.cifra}>
-                  <Typography className={classes.etiqueta} color="text.secondary">
-                    Regreso
-                  </Typography>
-                  <Typography className={classes.valor}>{regreso ?? '—'}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    el vehículo queda libre
-                  </Typography>
-                </div>
-                {hayAhorro && (
-                  <div className={classes.cifra}>
-                    <Typography className={classes.etiqueta} color="success.main">
-                      Ahorro
-                    </Typography>
-                    <Typography className={cx(classes.valor)} color="success.main">
-                      −{ahorro.km} km
-                    </Typography>
-                    <Typography variant="caption" color="success.main">
-                      {ahorro.min > 0 ? `${ahorro.min} min menos` : 'mismo tiempo'}
-                    </Typography>
-                  </div>
-                )}
-              </div>
-            </Paper>
-          )}
-
-          <Paper variant="outlined">
-            <List dense disablePadding>
-              {elegidos.map((p, i) => (
-                <ListItem
-                  key={p.id}
-                  divider={i < elegidos.length - 1}
-                  secondaryAction={
-                    <>
-                      {!resultado && (
-                        <Tooltip title="Subir">
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={() => mover(i, -1)}
-                              disabled={i === 0}
-                            >
-                              <ArrowUpwardIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      )}
-                      {!resultado && (
-                        <Tooltip title="Bajar">
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={() => mover(i, 1)}
-                              disabled={i === elegidos.length - 1}
-                            >
-                              <ArrowDownwardIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      )}
-                      <Tooltip title="Quitar de la ruta">
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setSeleccion((s) => s.filter((x) => x !== p.id));
-                            limpiarCalculo();
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </>
-                  }
-                >
-                  <ListItemAvatar sx={{ minWidth: 46 }}>
-                    <Avatar
-                      className={cx(classes.numero, i === 0 ? classes.salida : classes.parada)}
-                    >
-                      {i + 1}
-                    </Avatar>
-                  </ListItemAvatar>
-                  {/* Margen para las tres acciones de la derecha (subir, bajar, quitar). La
-                      lista reserva lugar para UNA; con tres, el texto quedaba debajo de las
-                      flechas y «llega 08:04» se leía «llega 08:0↑». */}
-                  <ListItemText
-                    sx={{ mr: resultado ? 0 : 8 }}
-                    primary={
-                      i === 0 ? (
-                        <>
-                          {p.nombre}
-                          <Chip
-                            size="small"
-                            label="Salida"
-                            color="success"
-                            variant="outlined"
-                            sx={{ ml: 1, height: 18, fontSize: '0.62rem' }}
-                          />
-                        </>
-                      ) : (
-                        p.nombre
-                      )
-                    }
-                    secondary={
-                      i === 0
-                        ? `Sale ${horaDe(p.id) ?? horaSalida}${
-                            viajeHasta(elegidos[1]?.id)
-                              ? ` · ${viajeHasta(elegidos[1].id)} min hasta la primera parada`
-                              : ''
-                          }`
-                        : horaDe(p.id)
-                          ? `${viajeHasta(p.id)} min de viaje · llega ${horaDe(p.id)} · se va ${horaMasMin(fecha, horaDe(p.id), p.minutosEnSitio)}`
-                          : `${p.minutosEnSitio} min en el punto`
-                    }
-                  />
-                </ListItem>
-              ))}
-              {regreso && elegidos.length >= 2 && (
-                <ListItem>
-                  <ListItemAvatar sx={{ minWidth: 46 }}>
-                    <Avatar className={cx(classes.numero, classes.salida)}>
-                      <FlagIcon fontSize="small" />
-                    </Avatar>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={`Regresa a ${elegidos[0].nombre}`}
-                    secondary={`Llega ${regreso} · el vehículo queda libre`}
-                  />
-                </ListItem>
-              )}
-              {elegidos.length === 0 && (
-                <ListItem>
-                  <ListItemText
-                    primary="Todavía no agregaste paradas"
-                    secondary="Tocá el mapa donde tenés que entregar, o buscá el lugar con la lupa. Cada punto queda guardado para las próximas rutas."
-                  />
-                </ListItem>
-              )}
-            </List>
-          </Paper>
-
           {/* El horario del conductor. Se avisa antes de guardar: después ya está
               comprometido y la conversación es otra. */}
           {fuera && conductorElegido && (
@@ -1362,133 +1544,39 @@ const PlanificarRuta = ({
             </Alert>
           )}
 
-          {resultado && (
-            <Alert
-              severity="success"
-              action={
-                <Button onClick={despachar} disabled={ocupado} variant="contained" size="small">
-                  Despachar
-                </Button>
-              }
-            >
-              Ruta guardada. Al despachar queda vigilada y el conductor la ve en su teléfono.
-            </Alert>
-          )}
+          <Divider />
 
-          {/* Qué pasó al ordenar. Si el orden ya era el mejor, también se dice: si no, parece
-              que el botón no hizo nada. */}
-          {ahorro && !resultado && (
-            <Typography variant="caption" color={hayAhorro ? 'success.main' : 'text.secondary'}>
-              {hayAhorro
-                ? `Ordenada: ${ahorro.km} km menos que en el orden en que las marcaste. La salida quedó primera.`
-                : 'Tu orden ya era el más corto. No hubo que mover nada.'}
-            </Typography>
-          )}
-
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-            {/* Con dos paradas no hay nada que ordenar: la primera es la salida y no se mueve. */}
-            <Tooltip title="La parada 1 es la salida y no se mueve. Las demás se acomodan por el camino más corto.">
-              <span>
-                <Button
-                  variant="outlined"
-                  startIcon={<TrendingDownIcon />}
-                  disabled={ordenando || ocupado || seleccion.length < 3 || Boolean(resultado)}
-                  onClick={ordenar}
-                >
-                  {ordenando ? 'Ordenando…' : 'Ordenar ruta'}
-                </Button>
-              </span>
-            </Tooltip>
-            <Button
-              variant="contained"
-              disabled={ocupado || seleccion.length < 2 || !vehiculo || Boolean(resultado)}
-              onClick={crear}
-            >
-              Guardar ruta
-            </Button>
-            {seleccion.length > 0 && (
-              <Button
-                onClick={() => {
-                  setSeleccion([]);
-                  limpiarCalculo();
-                }}
-                disabled={ocupado}
-              >
-                Limpiar
+          {/* La última decisión, al final y sola: lo que se hace después de revisar todo lo demás. */}
+          {resultado ? (
+            <>
+              <Alert severity="success">
+                Ruta guardada. Al despachar queda vigilada
+                {conductor ? ' y el conductor la ve en su teléfono.' : '.'}
+              </Alert>
+              <Button variant="contained" size="large" onClick={despachar} disabled={ocupado}>
+                Despachar
               </Button>
-            )}
-          </Stack>
-
-          <Divider />
-          <Stack direction="row" spacing={1} alignItems="baseline">
-            <Typography variant="subtitle2">Rutas guardadas</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {plantillas.length > 0 ? 'tocá una para cargarla' : 'guardá una ruta para repetirla'}
-            </Typography>
-          </Stack>
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-            {plantillas.map((pl) => (
-              <Chip
-                key={pl.id}
-                label={`${pl.nombre} · ${pl.puntos.length}`}
-                variant="outlined"
-                color="primary"
-                onClick={() => {
-                  setSeleccion(pl.puntos.map((x) => x.id));
-                  setNombre(pl.nombre);
-                  limpiarCalculo();
-                }}
-              />
-            ))}
-            {seleccion.length >= 2 && (
-              <Chip
-                icon={<BookmarkAddIcon />}
-                color={plantillaEditada ? 'primary' : 'default'}
-                label={plantillaEditada ? 'Guardar cambios' : 'Guardar esta ruta'}
-                onClick={() => setGuardarPlantilla(nombre || '')}
-              />
-            )}
-          </Stack>
-
-          <Divider />
-          <Stack direction="row" spacing={1} alignItems="baseline">
-            <Typography variant="subtitle2">Libreta de puntos</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {puntos.length > 0 ? `${puntos.length} guardados` : 'se llena sola con el uso'}
-            </Typography>
-          </Stack>
-          {puntos.length > 8 && (
-            <TextField
-              size="small"
-              fullWidth
-              placeholder="Buscar un punto guardado"
-              value={busquedaPunto}
-              onChange={(e) => setBusquedaPunto(e.target.value)}
-              slotProps={{
-                input: { startAdornment: <SearchIcon fontSize="small" sx={{ mr: 1 }} /> },
-              }}
-            />
+            </>
+          ) : (
+            <>
+              <Button
+                variant="contained"
+                size="large"
+                disabled={ocupado || seleccion.length < 2 || !vehiculo}
+                onClick={crear}
+              >
+                Guardar ruta
+              </Button>
+              {/* Un botón apagado sin motivo parece roto. */}
+              {(seleccion.length < 2 || !vehiculo) && (
+                <Typography variant="caption" color="text.secondary">
+                  {seleccion.length < 2
+                    ? `Para guardarla falta${seleccion.length === 0 ? 'n dos paradas: la salida y una entrega.' : ' una parada más.'}`
+                    : 'Para guardarla falta elegir el vehículo.'}
+                </Typography>
+              )}
+            </>
           )}
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-            {puntos
-              .filter(
-                (p) =>
-                  !seleccion.includes(p.id) &&
-                  p.nombre.toLowerCase().includes(busquedaPunto.trim().toLowerCase()),
-              )
-              .map((p) => (
-                <Chip
-                  key={p.id}
-                  label={p.nombre}
-                  icon={<AddIcon />}
-                  variant="outlined"
-                  onClick={() => {
-                    setSeleccion((s) => [...s, p.id]);
-                    limpiarCalculo();
-                  }}
-                />
-              ))}
-          </Stack>
         </Stack>
       </div>
 

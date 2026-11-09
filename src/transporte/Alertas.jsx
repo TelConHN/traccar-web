@@ -19,6 +19,7 @@ import {
   Tabs,
   TextField,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
 import MapView from '../map/core/MapView';
 import MapCamera from '../map/MapCamera';
@@ -36,8 +37,8 @@ const useStyles = makeStyles()((theme) => ({
     flexGrow: 1,
     minHeight: 0,
     [theme.breakpoints.down('md')]: {
-      gridTemplateColumns: '1fr',
-      gridTemplateRows: 'minmax(200px, 34vh) 1fr',
+      display: 'block',
+      minHeight: 'auto',
     },
   },
   panel: {
@@ -45,9 +46,19 @@ const useStyles = makeStyles()((theme) => ({
     overflow: 'auto',
     padding: theme.spacing(2),
     borderRight: `1px solid ${theme.palette.divider}`,
-    [theme.breakpoints.down('md')]: { borderRight: 'none', order: 2 },
+    [theme.breakpoints.down('md')]: { borderRight: 'none', overflow: 'visible', minHeight: 'auto' },
   },
-  mapa: { position: 'relative', minHeight: 0, [theme.breakpoints.down('md')]: { order: 1 } },
+  mapa: { position: 'relative', minHeight: 0 },
+  // El mapa del teléfono: debajo de la alerta que se tocó, en vez de un mapamundi vacío arriba.
+  mapaEnAlerta: {
+    position: 'relative',
+    width: '100%',
+    height: 260,
+    marginTop: theme.spacing(1),
+    marginBottom: theme.spacing(0.5),
+    borderRadius: theme.shape.borderRadius,
+    overflow: 'hidden',
+  },
 }));
 
 const hoy = () => new Date().toLocaleDateString('en-CA');
@@ -102,6 +113,7 @@ const detalleDe = (a) => {
 const Alertas = ({ puedeEditar }) => {
   const { classes } = useStyles();
   const navigate = useNavigate();
+  const telefono = useMediaQuery((theme) => theme.breakpoints.down('md'));
   const [desde, setDesde] = useState(haceDias(6));
   const [hasta, setHasta] = useState(hoy());
   const [pestana, setPestana] = useState(0);
@@ -132,13 +144,38 @@ const Alertas = ({ puedeEditar }) => {
       ? [[elegida.longitud, elegida.latitud]]
       : [];
 
+  const mapa = (
+    <>
+      <MapView>
+        {elegida?.trazo && (
+          <LineaEnMapa coordenadas={elegida.trazo} paradas={[]} color="#d32f2f" resaltada />
+        )}
+        {elegida?.latitud != null && (
+          <MapMarkers markers={[{ latitude: elegida.latitud, longitude: elegida.longitud }]} />
+        )}
+      </MapView>
+      <MapScale />
+      {encuadre.length > 0 && (
+        <MapCamera
+          {...(encuadre.length > 1
+            ? { coordinates: encuadre }
+            : { latitude: encuadre[0][1], longitude: encuadre[0][0] })}
+        />
+      )}
+    </>
+  );
+
   return (
     <div className={classes.contenedor}>
       <div className={classes.panel}>
         <Typography variant="h5" component="h1" fontWeight={600}>
           Alertas
         </Typography>
-        <Stack direction="row" spacing={1} sx={{ my: 1.5 }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ my: 1.5, '& > *': { flex: '1 1 0', minWidth: 0 } }}
+        >
           <TextField
             type="date"
             size="small"
@@ -180,7 +217,14 @@ const Alertas = ({ puedeEditar }) => {
               divider
               sx={{ alignItems: 'flex-start', flexDirection: 'column' }}
             >
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                useFlexGap
+                flexWrap="wrap"
+                sx={{ width: '100%' }}
+              >
                 <Chip size="small" color={colorDe(a)} label={etiquetaDe(a)} />
                 <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
                   {cuando(a.cuando)}
@@ -190,6 +234,11 @@ const Alertas = ({ puedeEditar }) => {
                 primary={`${a.vehiculo} · ${a.linea} · ${a.variante}`}
                 secondary={detalleDe(a)}
               />
+              {telefono && activa === a.id && (
+                <div className={classes.mapaEnAlerta} onClick={(e) => e.stopPropagation()}>
+                  {mapa}
+                </div>
+              )}
               {activa === a.id && (
                 <Stack
                   direction="row"
@@ -209,24 +258,7 @@ const Alertas = ({ puedeEditar }) => {
           ))}
         </List>
       </div>
-      <div className={classes.mapa}>
-        <MapView>
-          {elegida?.trazo && (
-            <LineaEnMapa coordenadas={elegida.trazo} paradas={[]} color="#d32f2f" resaltada />
-          )}
-          {elegida?.latitud != null && (
-            <MapMarkers markers={[{ latitude: elegida.latitud, longitude: elegida.longitud }]} />
-          )}
-        </MapView>
-        <MapScale />
-        {encuadre.length > 0 && (
-          <MapCamera
-            {...(encuadre.length > 1
-              ? { coordinates: encuadre }
-              : { latitude: encuadre[0][1], longitude: encuadre[0][0] })}
-          />
-        )}
-      </div>
+      {!telefono && <div className={classes.mapa}>{mapa}</div>}
     </div>
   );
 };

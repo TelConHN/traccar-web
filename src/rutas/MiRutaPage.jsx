@@ -38,6 +38,7 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
+import DirectionsIcon from '@mui/icons-material/Directions';
 import BackIcon from '../common/components/BackIcon';
 import MapView from '../map/core/MapView';
 import MapRouteCoordinates from '../map/MapRouteCoordinates';
@@ -48,6 +49,7 @@ import BottomMenu from '../common/components/BottomMenu';
 import { useEffectAsync } from '../reactHelper';
 import MisTurnos from '../transporte/MisTurnos';
 import rutasApi from './api';
+import { useConfirmar } from '../servicios/Confirmar';
 
 const useStyles = makeStyles()((theme) => ({
   // height y flexGrow a la vez: esta pantalla es hija directa del contenido de la aplicacion
@@ -127,6 +129,7 @@ const MOTIVOS = [
 
 const MiRutaPage = () => {
   const { classes, cx } = useStyles();
+  const [confirmar, dialogoConfirmar] = useConfirmar();
   const escritorio = useMediaQuery((theme) => theme.breakpoints.up('md'));
 
   // `?jornada=` es la vista previa del administrador: la misma pantalla del conductor, con los
@@ -375,44 +378,6 @@ const MiRutaPage = () => {
               </Alert>
             )}
 
-            {/* Las rutas del día, en el orden en que se manejan. Solo aparece cuando hay más
-                de una: con una sola sería un título de adorno arriba de la única cosa que
-                hay en pantalla. */}
-            {mias.length > 1 && (
-              <Paper variant="outlined">
-                <Typography
-                  variant="overline"
-                  color="text.secondary"
-                  sx={{ px: 1.5, pt: 1, display: 'block' }}
-                >
-                  Tus rutas · {mias.length}
-                </Typography>
-                <List dense disablePadding>
-                  {mias.map((j, i) => (
-                    <ListItemButton
-                      key={j.id}
-                      selected={j.id === jornadaId}
-                      divider={i < mias.length - 1}
-                      onClick={() => setElegida(j.id)}
-                    >
-                      <ListItemAvatar sx={{ minWidth: 42 }}>
-                        <Avatar className={classes.numero}>{i + 1}</Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={j.nombre || `Ruta ${i + 1}`}
-                        secondary={`${hora(j.salida)} a ${hora(j.fin)} · ${j.paradas} paradas${
-                          j.esHoy ? '' : ` · ${dia(j.fecha)}`
-                        }`}
-                      />
-                      {j.estado !== 'despachada' && (
-                        <Chip size="small" label="Sin despachar" color="warning" />
-                      )}
-                    </ListItemButton>
-                  ))}
-                </List>
-              </Paper>
-            )}
-
             {/* Cerrar un aviso lo marca leído: no vuelve a aparecer en la próxima vuelta. */}
             {avisos.map((a) => (
               <Alert
@@ -428,17 +393,6 @@ const MiRutaPage = () => {
                 {a.detalle}
               </Alert>
             ))}
-
-            {/* Que no le agarre de sorpresa: si hay otra después, se dice desde ya a qué hora
-                y desde dónde arranca. Es la misma pregunta que haría por teléfono. */}
-            {siguienteRuta && (
-              <Alert severity="info" icon={false}>
-                Al terminar esta sigue{' '}
-                <strong>{siguienteRuta.nombre || 'la siguiente ruta'}</strong>: sale{' '}
-                {hora(siguienteRuta.salida)}
-                {siguienteRuta.origen ? ` desde ${siguienteRuta.origen}` : ''}.
-              </Alert>
-            )}
 
             {/* Una ruta cargada pero no despachada no tiene geocercas ni permisos: el servidor
                 rechaza cualquier entrega. Vale más decirlo que dejarlo tocar botones que
@@ -507,6 +461,7 @@ const MiRutaPage = () => {
                           <Stack direction="row" spacing={1}>
                             <Button
                               variant="contained"
+                              size="large"
                               fullWidth
                               disabled={enviando}
                               onClick={() => marcar(siguiente.id, 'entregado')}
@@ -515,6 +470,7 @@ const MiRutaPage = () => {
                             </Button>
                             <Button
                               variant="outlined"
+                              size="large"
                               fullWidth
                               disabled={enviando}
                               onClick={() => {
@@ -525,14 +481,35 @@ const MiRutaPage = () => {
                               No se pudo
                             </Button>
                           </Stack>
+                          {/* Cómo llegar lo resuelve la aplicación de mapas que el conductor ya usa. */}
                           <Button
                             variant="outlined"
                             fullWidth
+                            startIcon={<DirectionsIcon />}
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${siguiente.punto.latitud},${siguiente.punto.longitud}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Cómo llegar
+                          </Button>
+                          {/* Menos peso que las otras: se usa poco, y cambia el punto para todas las
+                              rutas que pasen por ahí. */}
+                          <Button
+                            size="small"
+                            fullWidth
                             startIcon={<MyLocationIcon />}
                             disabled={enviando}
-                            onClick={() => marcar(siguiente.id, 'punto_corregido')}
+                            onClick={async () => {
+                              const ok = await confirmar({
+                                titulo: 'Corregir la ubicación',
+                                detalle: `«${siguiente.punto.nombre}» queda donde estás ahora, también para las próximas rutas.`,
+                                accion: 'Corregir',
+                                peligro: false,
+                              });
+                              if (ok) marcar(siguiente.id, 'punto_corregido');
+                            }}
                           >
-                            El punto es aquí
+                            ¿Está mal ubicado? El punto es aquí
                           </Button>
                         </Stack>
                       )}
@@ -580,12 +557,62 @@ const MiRutaPage = () => {
                 </Paper>
               </>
             )}
+
+            {/* Que no le agarre de sorpresa: si hay otra después, se dice desde ya a qué hora
+                y desde dónde arranca. Es la misma pregunta que haría por teléfono. */}
+            {siguienteRuta && (
+              <Alert severity="info" icon={false}>
+                Al terminar esta sigue{' '}
+                <strong>{siguienteRuta.nombre || 'la siguiente ruta'}</strong>: sale{' '}
+                {hora(siguienteRuta.salida)}
+                {siguienteRuta.origen ? ` desde ${siguienteRuta.origen}` : ''}.
+              </Alert>
+            )}
+
+            {/* Las rutas del día, en el orden en que se manejan. Solo aparece cuando hay más
+                de una: con una sola sería un título de adorno arriba de la única cosa que
+                hay en pantalla. */}
+            {mias.length > 1 && (
+              <Paper variant="outlined">
+                <Typography
+                  variant="overline"
+                  color="text.secondary"
+                  sx={{ px: 1.5, pt: 1, display: 'block' }}
+                >
+                  Tus rutas · {mias.length}
+                </Typography>
+                <List dense disablePadding>
+                  {mias.map((j, i) => (
+                    <ListItemButton
+                      key={j.id}
+                      selected={j.id === jornadaId}
+                      divider={i < mias.length - 1}
+                      onClick={() => setElegida(j.id)}
+                    >
+                      <ListItemAvatar sx={{ minWidth: 42 }}>
+                        <Avatar className={classes.numero}>{i + 1}</Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={j.nombre || `Ruta ${i + 1}`}
+                        secondary={`${hora(j.salida)} a ${hora(j.fin)} · ${j.paradas} paradas${
+                          j.esHoy ? '' : ` · ${dia(j.fecha)}`
+                        }`}
+                      />
+                      {j.estado !== 'despachada' && (
+                        <Chip size="small" label="Sin despachar" color="warning" />
+                      )}
+                    </ListItemButton>
+                  ))}
+                </List>
+              </Paper>
+            )}
           </Stack>
         </div>
         {/* En el teléfono el menú ya lo pone la aplicación al pie de toda pantalla (App.jsx):
             repetirlo acá lo mostraba dos veces y le robaba altura a la ruta. */}
         {escritorio && <BottomMenu />}
       </div>
+      {dialogoConfirmar}
     </div>
   );
 };

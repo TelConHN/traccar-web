@@ -16,12 +16,16 @@ import {
   TableHead,
   TableRow,
   Typography,
+  Paper,
+  Stack,
+  useMediaQuery,
 } from '@mui/material';
 import { useEffectAsync } from '../reactHelper';
 import { APTITUD } from './ViajeDetalle';
 import transporteApi from './api';
 
 const Equipos = ({ perfil }) => {
+  const telefono = useMediaQuery((theme) => theme.breakpoints.down('md'));
   const [equipos, setEquipos] = useState(null);
   const [error, setError] = useState('');
 
@@ -34,7 +38,7 @@ const Equipos = ({ perfil }) => {
   }, [perfil?.clienteElegido?.id]);
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 900 }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1280 }}>
       <Typography variant="h5" component="h1" fontWeight={600}>
         Equipos GPS
       </Typography>
@@ -45,7 +49,38 @@ const Equipos = ({ perfil }) => {
       </Typography>
       {!equipos && !error && <LinearProgress />}
       {error && <Alert severity="error">{error}</Alert>}
-      {equipos && (
+      {equipos && telefono && (
+        <Stack spacing={1.5}>
+          {equipos.map((e) => (
+            <Paper key={e.traccarDeviceId} variant="outlined" sx={{ p: 1.5 }}>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                useFlexGap
+                flexWrap="wrap"
+                columnGap={1}
+                rowGap={0.5}
+              >
+                <Typography fontWeight={600}>{e.nombre}</Typography>
+                {e.aptitud && (
+                  <Chip
+                    size="small"
+                    color={APTITUD[e.aptitud.nivel]?.color}
+                    label={APTITUD[e.aptitud.nivel]?.texto ?? e.aptitud.nivel}
+                  />
+                )}
+              </Stack>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {e.aptitud
+                  ? `Reporta cada ${e.aptitud.medianaSeg} s · p90 ${e.aptitud.p90Seg} s · ${e.aptitud.posiciones} posiciones · ${e.turnos} ${e.turnos === 1 ? 'horario' : 'horarios'}`
+                  : `Todavía sin medir (se mide al correr un horario) · ${e.turnos} ${e.turnos === 1 ? 'horario' : 'horarios'}`}
+              </Typography>
+            </Paper>
+          ))}
+        </Stack>
+      )}
+      {equipos && !telefono && (
         <Table size="small">
           <TableHead>
             <TableRow>

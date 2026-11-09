@@ -122,7 +122,7 @@ const Avisos = ({ onLeidas }) => {
   };
 
   return (
-    <Stack sx={{ p: 2, maxWidth: 900 }} spacing={2}>
+    <Stack sx={{ p: 2, maxWidth: 1280 }} spacing={2}>
       <Tabs value={pestana} onChange={(_e, v) => setPestana(v)}>
         <Tab label={avisos.noLeidas ? `Avisos (${avisos.noLeidas})` : 'Avisos'} />
         <Tab label="Qué me llega por correo" />
@@ -137,8 +137,15 @@ const Avisos = ({ onLeidas }) => {
       {pestana === 0 && (
         <>
           {cargando && <LinearProgress />}
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="body2" color="text.secondary">
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            useFlexGap
+            flexWrap="wrap"
+            columnGap={2}
+          >
+            <Typography variant="body2" color="text.secondary" sx={{ flex: '1 1 240px' }}>
               Todo lo que pasa en tus rutas queda acá, llegue o no por correo.
             </Typography>
             {avisos.noLeidas > 0 && (
@@ -172,6 +179,7 @@ const Avisos = ({ onLeidas }) => {
                     onClick={() => abrir(n)}
                     sx={{
                       alignItems: 'flex-start',
+                      flexWrap: { xs: 'wrap', md: 'nowrap' },
                       ...(n.leida ? {} : { bgcolor: 'action.hover' }),
                     }}
                   >
@@ -189,8 +197,21 @@ const Avisos = ({ onLeidas }) => {
                         </Typography>
                       }
                       secondary={n.detalle}
+                      sx={{ flexBasis: { xs: 'calc(100% - 64px)', md: 'auto' } }}
                     />
-                    <Stack alignItems="flex-end" spacing={0.5} sx={{ ml: 1, flexShrink: 0 }}>
+                    <Stack
+                      direction={{ xs: 'row', md: 'column' }}
+                      alignItems={{ xs: 'center', md: 'flex-end' }}
+                      spacing={0.5}
+                      useFlexGap
+                      flexWrap="wrap"
+                      sx={{
+                        ml: { xs: '64px', md: 1 },
+                        mb: { xs: 0.5, md: 0 },
+                        flexShrink: 0,
+                        maxWidth: { xs: 'calc(100% - 64px)', md: 'none' },
+                      }}
+                    >
                       {/* Si salió por correo o va en el resumen: responde «¿me llegó esto?». */}
                       {n.correoEstado === 'enviado' && (
                         <Chip size="small" label="Enviado por correo" variant="outlined" />
@@ -220,7 +241,10 @@ const Avisos = ({ onLeidas }) => {
                           }[n.grupo]
                         }
                         color={COLOR_GRUPO[n.grupo]}
-                        sx={{ height: 18, fontSize: '0.62rem' }}
+                        sx={{
+                          height: { xs: 24, md: 20 },
+                          fontSize: { xs: '0.75rem', md: '0.6875rem' },
+                        }}
                       />
                     </Stack>
                   </ListItemButton>
@@ -264,7 +288,7 @@ const Avisos = ({ onLeidas }) => {
                             size="small"
                             value={t.canal}
                             onChange={(e) => cambiarCanal(t.tipo, e.target.value)}
-                            sx={{ minWidth: 240 }}
+                            sx={{ minWidth: { sm: 240 } }}
                           >
                             {prefs.canales.map((c) => (
                               <MenuItem key={c} value={c}>

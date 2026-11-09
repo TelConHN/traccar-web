@@ -21,6 +21,9 @@ import {
   Button,
   Menu,
   MenuItem,
+  Box,
+  Paper,
+  useMediaQuery,
 } from '@mui/material';
 import MapView from '../map/core/MapView';
 import MapRouteCoordinates from '../map/MapRouteCoordinates';
@@ -38,10 +41,27 @@ const LLEGADA_POR = {
   conductor: 'lo marcó el conductor',
 };
 
-const useStyles = makeStyles()(() => ({
-  contenedor: { display: 'flex', flexDirection: 'column', flexGrow: 1, minHeight: 0 },
-  mapa: { flexBasis: '40%', flexShrink: 0, position: 'relative', minHeight: 240 },
-  detalle: { flexGrow: 1, minHeight: 0, overflow: 'auto' },
+const useStyles = makeStyles()((theme) => ({
+  contenedor: {
+    display: 'flex',
+    flexDirection: 'column',
+    flexGrow: 1,
+    minHeight: 0,
+    [theme.breakpoints.down('md')]: { minHeight: 'auto' },
+  },
+  mapa: {
+    flexBasis: '40%',
+    flexShrink: 0,
+    position: 'relative',
+    minHeight: 240,
+    [theme.breakpoints.down('md')]: { flexBasis: '42vh' },
+  },
+  detalle: {
+    flexGrow: 1,
+    minHeight: 0,
+    overflow: 'auto',
+    [theme.breakpoints.down('md')]: { minHeight: 'auto', overflow: 'visible' },
+  },
 }));
 
 // Fuera del componente: llamar a new Date() dentro del render rompe la pureza que exige
@@ -66,7 +86,61 @@ const ETIQUETA = {
   no_entregado: { texto: 'No se pudo', color: 'warning' },
 };
 
+// Cada pedazo de una parada se dibuja una vez y lo usan la tabla (computadora) y la tarjeta
+// (teléfono): así las dos vistas no se desincronizan.
+const llegadaDeParada = (p) => (
+  <>
+    {hora(p.horaLlegada)}
+    {/* Qué confirmó la llegada. Si alguna vez una hora parece rara, acá se ve de dónde salió. */}
+    {p.llegadaPor && (
+      <Typography variant="caption" display="block" color="text.secondary">
+        {LLEGADA_POR[p.llegadaPor] ?? p.llegadaPor}
+      </Typography>
+    )}
+    {p.minutosAtraso != null && (
+      <Typography
+        variant="caption"
+        display="block"
+        color={p.minutosAtraso > 0 ? 'warning.main' : 'success.main'}
+      >
+        {p.minutosAtraso > 0
+          ? `${p.minutosAtraso} min tarde`
+          : `${Math.abs(p.minutosAtraso)} min antes`}
+      </Typography>
+    )}
+  </>
+);
+
+// Lo que el GPS vio va en «Llegó»; esto es lo que dijo la persona. Un reporte que mezcle las dos
+// cosas no sirve para reclamar nada.
+const confirmoParada = (p) =>
+  p.confirmada ? (
+    <Typography variant="caption">Sí · {hora(p.confirmadaEn)}</Typography>
+  ) : (
+    <Typography variant="caption" color={p.sinConfirmar ? 'warning.main' : 'text.secondary'}>
+      {p.sinConfirmar ? 'No confirmó' : '—'}
+    </Typography>
+  );
+
+const estadoDeParada = (p) => (
+  <>
+    <Chip
+      size="small"
+      label={(ETIQUETA[p.estado] ?? { texto: p.estado }).texto}
+      color={(ETIQUETA[p.estado] ?? {}).color ?? 'default'}
+    />
+    {/* El motivo al lado del estado: «No se pudo» sin explicación obliga a llamar al conductor,
+        que es lo que este módulo viene a evitar. */}
+    {p.motivo && (
+      <Typography variant="caption" color="text.secondary" display="block">
+        {p.motivo}
+      </Typography>
+    )}
+  </>
+);
+
 const JornadaMapa = ({ jornadaId }) => {
+  const telefono = useMediaQuery((theme) => theme.breakpoints.down('md'));
   const { classes } = useStyles();
   const theme = useTheme();
 
@@ -205,82 +279,102 @@ const JornadaMapa = ({ jornadaId }) => {
               </Menu>
             </Stack>
 
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>#</TableCell>
-                  <TableCell>Punto</TableCell>
-                  <TableCell align="right">Debía llegar</TableCell>
-                  <TableCell align="right">Llegó</TableCell>
-                  <TableCell align="right">Salió</TableCell>
-                  <TableCell align="right">Estuvo</TableCell>
-                  <TableCell>Confirmó</TableCell>
-                  <TableCell>Estado</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
+            {telefono ? (
+              <Stack spacing={1.5} sx={{ p: 2, pt: 0 }}>
                 {cumplimiento.paradas.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell>{p.orden}</TableCell>
-                    <TableCell>{p.punto.nombre}</TableCell>
-                    <TableCell align="right">{hora(p.horaEstimada)}</TableCell>
-                    <TableCell align="right">
-                      {hora(p.horaLlegada)}
-                      {/* Qué confirmó la llegada. Si alguna vez una hora parece rara, acá se
-                          ve de dónde salió. */}
-                      {p.llegadaPor && (
-                        <Typography variant="caption" display="block" color="text.secondary">
-                          {LLEGADA_POR[p.llegadaPor] ?? p.llegadaPor}
-                        </Typography>
-                      )}
-                      {p.minutosAtraso != null && (
-                        <Typography
-                          variant="caption"
-                          display="block"
-                          color={p.minutosAtraso > 0 ? 'warning.main' : 'success.main'}
-                        >
-                          {p.minutosAtraso > 0
-                            ? `${p.minutosAtraso} min tarde`
-                            : `${Math.abs(p.minutosAtraso)} min antes`}
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell align="right">{hora(p.horaSalida)}</TableCell>
-                    <TableCell align="right">
-                      {p.minutosEnSitio != null ? `${p.minutosEnSitio} min` : '—'}
-                    </TableCell>
-                    <TableCell>
-                      {/* Lo que el GPS vio va en «Llegó»; esto es lo que dijo la persona. Un
-                          reporte que mezcle las dos cosas no sirve para reclamar nada. */}
-                      {p.confirmada ? (
-                        <Typography variant="caption">Sí · {hora(p.confirmadaEn)}</Typography>
-                      ) : (
-                        <Typography
-                          variant="caption"
-                          color={p.sinConfirmar ? 'warning.main' : 'text.secondary'}
-                        >
-                          {p.sinConfirmar ? 'No confirmó' : '—'}
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        label={(ETIQUETA[p.estado] ?? { texto: p.estado }).texto}
-                        color={(ETIQUETA[p.estado] ?? {}).color ?? 'default'}
-                      />
-                      {/* El motivo al lado del estado: «No se pudo» sin explicación obliga a
-                          llamar al conductor, que es lo que este módulo viene a evitar. */}
-                      {p.motivo && (
+                  <Paper key={p.id} variant="outlined" sx={{ p: 1.5 }}>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      useFlexGap
+                      flexWrap="wrap"
+                      columnGap={1}
+                      rowGap={0.5}
+                    >
+                      <Typography fontWeight={600}>
+                        {p.orden}. {p.punto.nombre}
+                      </Typography>
+                      {estadoDeParada(p)}
+                    </Stack>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                        gap: 1,
+                        mt: 1,
+                      }}
+                    >
+                      <div>
                         <Typography variant="caption" color="text.secondary" display="block">
-                          {p.motivo}
+                          Debía llegar
                         </Typography>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                        <Typography variant="body2">{hora(p.horaEstimada)}</Typography>
+                      </div>
+                      <div>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Llegó
+                        </Typography>
+                        <Typography variant="body2" component="div">
+                          {llegadaDeParada(p)}
+                        </Typography>
+                      </div>
+                      <div>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Salió
+                        </Typography>
+                        <Typography variant="body2">{hora(p.horaSalida)}</Typography>
+                      </div>
+                      <div>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Estuvo
+                        </Typography>
+                        <Typography variant="body2">
+                          {p.minutosEnSitio != null ? `${p.minutosEnSitio} min` : '—'}
+                        </Typography>
+                      </div>
+                      <div>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Confirmó
+                        </Typography>
+                        {confirmoParada(p)}
+                      </div>
+                    </Box>
+                  </Paper>
                 ))}
-              </TableBody>
-            </Table>
+              </Stack>
+            ) : (
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>#</TableCell>
+                    <TableCell>Punto</TableCell>
+                    <TableCell align="right">Debía llegar</TableCell>
+                    <TableCell align="right">Llegó</TableCell>
+                    <TableCell align="right">Salió</TableCell>
+                    <TableCell align="right">Estuvo</TableCell>
+                    <TableCell>Confirmó</TableCell>
+                    <TableCell>Estado</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {cumplimiento.paradas.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell>{p.orden}</TableCell>
+                      <TableCell>{p.punto.nombre}</TableCell>
+                      <TableCell align="right">{hora(p.horaEstimada)}</TableCell>
+                      <TableCell align="right">{llegadaDeParada(p)}</TableCell>
+                      <TableCell align="right">{hora(p.horaSalida)}</TableCell>
+                      <TableCell align="right">
+                        {p.minutosEnSitio != null ? `${p.minutosEnSitio} min` : '—'}
+                      </TableCell>
+                      <TableCell>{confirmoParada(p)}</TableCell>
+                      <TableCell>{estadoDeParada(p)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </>
         )}
       </div>

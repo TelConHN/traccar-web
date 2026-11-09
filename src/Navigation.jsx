@@ -39,6 +39,7 @@ import ResetPasswordPage from './login/ResetPasswordPage';
 import GeofencesPage from './other/GeofencesPage';
 import RutasPage from './rutas/RutasPage';
 import MiRutaPage from './rutas/MiRutaPage';
+import TemaServicio from './servicios/TemaServicio';
 import TransportePage from './transporte/TransportePage';
 import GeofencePage from './settings/GeofencePage';
 import { useEffectAsync } from './reactHelper';
@@ -144,7 +145,14 @@ const Navigation = () => {
         <Route path="rutas/usuarios/:conductorId" element={<RutasPage />} />
         <Route path="rutas/avisos" element={<RutasPage />} />
         <Route path="rutas/:id" element={<RutasPage />} />
-        <Route path="mi-ruta" element={<MiRutaPage />} />
+        <Route
+          path="mi-ruta"
+          element={
+            <TemaServicio>
+              <MiRutaPage />
+            </TemaServicio>
+          }
+        />
         {/* Transporte (TelConHN): otro servicio, con su propio ícono y su propio menú. La
             página lee la sección de la dirección, así que todas van al mismo componente. */}
         <Route path="transporte" element={<TransportePage />} />
