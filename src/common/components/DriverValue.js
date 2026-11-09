@@ -11,7 +11,7 @@ export const normalizeDriverId = (value) =>
 // Formas en que puede estar escrita la misma tarjeta. Los GPS (p. ej. Startek) mandan el número
 // en hexadecimal ("72A224"), pero en la tarjeta suele venir impreso en decimal ("0007512612"):
 // es el mismo número, y el conductor puede haberse cargado con cualquiera de los dos.
-const driverIdForms = (value) => {
+export const driverIdForms = (value) => {
   const id = normalizeDriverId(value);
   const forms = new Set([id]);
   if (/^[0-9A-F]+$/.test(id) && id.length <= 12) {

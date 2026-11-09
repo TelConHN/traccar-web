@@ -3,12 +3,14 @@ import {
   geofencesActions,
   groupsActions,
   driversActions,
+  productsActions,
   maintenancesActions,
   calendarsActions,
 } from './store';
 import { useEffectAsync } from './reactHelper';
 import fetchOrThrow from './common/util/fetchOrThrow';
 import fetchDrivers from './common/util/fetchDrivers';
+import fetchProducts from './common/util/fetchProducts';
 
 const CachingController = () => {
   const authenticated = useSelector((state) => !!state.session.user);
@@ -32,6 +34,12 @@ const CachingController = () => {
   useEffectAsync(async () => {
     if (authenticated) {
       dispatch(driversActions.refresh(await fetchDrivers(administrator)));
+    }
+  }, [authenticated, administrator]);
+
+  useEffectAsync(async () => {
+    if (authenticated) {
+      dispatch(productsActions.refresh(await fetchProducts(administrator)));
     }
   }, [authenticated, administrator]);
 

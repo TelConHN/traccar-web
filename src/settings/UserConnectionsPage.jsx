@@ -100,6 +100,15 @@ const UserConnectionsPage = () => {
               label={t('sharedDrivers')}
             />
             <LinkField
+              endpointAll="/api/products?all=true"
+              endpointLinked={`/api/products?userId=${id}`}
+              baseId={id}
+              keyBase="userId"
+              keyLink="productId"
+              titleGetter={(it) => `${it.name} (${it.uniqueId})`}
+              label={t('sharedProducts')}
+            />
+            <LinkField
               endpointAll="/api/commands?all=true"
               endpointLinked={`/api/commands?userId=${id}`}
               baseId={id}

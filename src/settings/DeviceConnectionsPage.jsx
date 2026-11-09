@@ -62,6 +62,15 @@ const DeviceConnectionsPage = () => {
                 label={t('sharedDrivers')}
               />
             )}
+            <LinkField
+              endpointAll="/api/products"
+              endpointLinked={`/api/products?deviceId=${id}`}
+              baseId={id}
+              keyBase="deviceId"
+              keyLink="productId"
+              titleGetter={(it) => `${it.name} (${it.uniqueId})`}
+              label={t('sharedProducts')}
+            />
             {!features.disableComputedAttributes && (
               <LinkField
                 endpointAll="/api/attributes/computed"

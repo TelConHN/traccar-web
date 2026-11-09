@@ -375,6 +375,21 @@ export default (t) =>
         name: t('sharedDriver'),
         type: 'string',
       },
+      products: {
+        name: t('positionProducts'),
+        type: 'string',
+        description: t('positionProductsHelp'),
+      },
+      productsSeen: {
+        name: t('positionProductsSeen'),
+        type: 'string',
+        description: t('positionProductsSeenHelp'),
+      },
+      barcode: {
+        name: t('positionBarcode'),
+        type: 'string',
+        description: t('positionBarcodeHelp'),
+      },
       card: {
         name: t('positionCard'),
         type: 'string',

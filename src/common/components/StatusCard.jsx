@@ -31,6 +31,7 @@ import { useTranslation } from './LocalizationProvider';
 import RemoveDialog from './RemoveDialog';
 import PositionValue from './PositionValue';
 import AttributeName from './AttributeName';
+import CargaResumen from './CargaResumen';
 import {
   useAdministrator,
   useDeviceReadonly,
@@ -262,6 +263,7 @@ const StatusCard = ({ deviceId, position, onClose, disableActions, desktopPaddin
                       </TableFooter>
                     )}
                   </Table>
+                  <CargaResumen deviceId={deviceId} />
                 </CardContent>
               )}
               <CardActions

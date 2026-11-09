@@ -8,6 +8,7 @@ import { motionReducer as motion } from './motion';
 import { geofencesReducer as geofences } from './geofences';
 import { groupsReducer as groups } from './groups';
 import { driversReducer as drivers } from './drivers';
+import { productsReducer as products } from './products';
 import { maintenancesReducer as maintenances } from './maintenances';
 import { calendarsReducer as calendars } from './calendars';
 import throttleMiddleware from './throttleMiddleware';
@@ -21,6 +22,7 @@ const reducer = combineReducers({
   geofences,
   groups,
   drivers,
+  products,
   maintenances,
   calendars,
 });
@@ -33,6 +35,7 @@ export { motionActions } from './motion';
 export { geofencesActions } from './geofences';
 export { groupsActions } from './groups';
 export { driversActions } from './drivers';
+export { productsActions } from './products';
 export { maintenancesActions } from './maintenances';
 export { calendarsActions } from './calendars';
 

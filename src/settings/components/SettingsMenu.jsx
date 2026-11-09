@@ -4,6 +4,7 @@ import DrawIcon from '@mui/icons-material/Draw';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import FolderIcon from '@mui/icons-material/Folder';
 import PersonIcon from '@mui/icons-material/Person';
+import Inventory2Icon from '@mui/icons-material/Inventory2';
 import SettingsIcon from '@mui/icons-material/Settings';
 import BuildIcon from '@mui/icons-material/Build';
 import PeopleIcon from '@mui/icons-material/People';
@@ -93,6 +94,12 @@ const SettingsMenu = () => {
                 selected={location.pathname.startsWith('/settings/driver')}
               />
             )}
+            <MenuItem
+              title={t('sharedProducts')}
+              link="/settings/products"
+              icon={<Inventory2Icon />}
+              selected={location.pathname.startsWith('/settings/product')}
+            />
             {!features.disableCalendars && (
               <MenuItem
                 title={t('sharedCalendars')}

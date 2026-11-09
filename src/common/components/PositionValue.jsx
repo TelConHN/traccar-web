@@ -26,6 +26,7 @@ import usePositionAttributes from '../attributes/usePositionAttributes';
 import AddressValue from './AddressValue';
 import GeofencesValue from './GeofencesValue';
 import DriverValue from './DriverValue';
+import ProductsValue from './ProductsValue';
 
 const PositionValue = ({ position, property, attribute }) => {
   const t = useTranslation();
@@ -142,6 +143,8 @@ const PositionValue = ({ position, property, attribute }) => {
       return <GeofencesValue geofenceIds={value} />;
     case 'driverUniqueId':
       return <DriverValue driverUniqueId={value} />;
+    case 'products':
+      return <ProductsValue value={value} />;
     default:
       return formatValue(value);
   }

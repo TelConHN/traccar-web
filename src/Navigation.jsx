@@ -12,6 +12,7 @@ import NotificationPage from './settings/NotificationPage';
 import GroupsPage from './settings/GroupsPage';
 import GroupPage from './settings/GroupPage';
 import PositionPage from './other/PositionPage';
+import CargaPage from './other/CargaPage';
 import NetworkPage from './other/NetworkPage';
 import EventReportPage from './reports/EventReportPage';
 import GeofenceReportPage from './reports/GeofenceReportPage';
@@ -22,6 +23,8 @@ import SummaryReportPage from './reports/SummaryReportPage';
 import ChartReportPage from './reports/ChartReportPage';
 import DriversPage from './settings/DriversPage';
 import DriverPage from './settings/DriverPage';
+import ProductsPage from './settings/ProductsPage';
+import ProductPage from './settings/ProductPage';
 import CalendarsPage from './settings/CalendarsPage';
 import CalendarPage from './settings/CalendarPage';
 import ComputedAttributesPage from './settings/ComputedAttributesPage';
@@ -129,6 +132,7 @@ const Navigation = () => {
         <Route index element={<MainPage />} />
 
         <Route path="position/:id" element={<PositionPage />} />
+        <Route path="carga/:deviceId" element={<CargaPage />} />
         <Route path="network/:positionId" element={<NetworkPage />} />
         <Route path="event/:id" element={<EventPage />} />
         <Route path="replay" element={<ReplayPage />} />
@@ -182,6 +186,9 @@ const Navigation = () => {
           <Route path="drivers" element={<DriversPage />} />
           <Route path="driver/:id" element={<DriverPage />} />
           <Route path="driver" element={<DriverPage />} />
+          <Route path="products" element={<ProductsPage />} />
+          <Route path="product/:id" element={<ProductPage />} />
+          <Route path="product" element={<ProductPage />} />
           <Route path="geofence/:id" element={<GeofencePage />} />
           <Route path="geofence" element={<GeofencePage />} />
           <Route path="groups" element={<GroupsPage />} />
