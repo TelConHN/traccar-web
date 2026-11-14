@@ -11,6 +11,7 @@ import { sessionActions } from './store';
 import UpdateController from './UpdateController';
 import MotionController from './main/MotionController';
 import TermsDialog from './common/components/TermsDialog';
+import AvisoCobroDialog from './common/components/AvisoCobroDialog';
 import Loader from './common/components/Loader';
 import fetchOrThrow from './common/util/fetchOrThrow';
 
@@ -86,6 +87,8 @@ const App = () => {
       <CachingController />
       <UpdateController />
       <MotionController />
+      {/* Pago pendiente sin respuesta: lo decide el panel; a un administrador nunca le toca. */}
+      {!user.administrator && <AvisoCobroDialog />}
       <div className={classes.page}>
         <Outlet />
       </div>
