@@ -180,7 +180,8 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion, limitador = false }) =>
   };
 
   const estadoRef = useRef({});
-  estadoRef.current = { modoToque, activa, linea, inicioTramo };
+  // `cargar` también va acá: el clic se registra una vez y tiene que recargar la línea de AHORA.
+  estadoRef.current = { modoToque, activa, linea, inicioTramo, cargar };
   useEffect(() => {
     const alTocar = async (e) => {
       const s = estadoRef.current;
@@ -201,7 +202,7 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion, limitador = false }) =>
           await transporteApi.cortarVariante(s.linea.id, s.activa.id, punto);
           setModoToque(null);
           setAviso('La variante quedó partida en ida y vuelta.');
-          await cargar();
+          await s.cargar();
         } catch (err) {
           setError(err.message);
         }
@@ -209,6 +210,7 @@ const LineaDetalle = ({ lineaId, puedeEditar, operacion, limitador = false }) =>
     };
     map.on('click', alTocar);
     return () => map.off('click', alTocar);
+    // Una sola vez: todo lo que cambia se lee de estadoRef en cada toque.
   }, []);
 
   const accion = async (fn, mensaje) => {

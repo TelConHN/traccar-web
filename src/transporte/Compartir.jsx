@@ -69,7 +69,7 @@ const Compartir = ({ operacion }) => {
   const [recienCreado, setRecienCreado] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [copiado, setCopiado] = useState(false);
-  const campoEnlace = useRef(null);
+  const campoEnlaceRef = useRef(null);
   const [confirmar, dialogoConfirmar] = useConfirmar();
 
   const cargar = async () => {
@@ -163,7 +163,7 @@ const Compartir = ({ operacion }) => {
       await navigator.clipboard.writeText(url);
       setCopiado(true);
     } catch {
-      campoEnlace.current?.select();
+      campoEnlaceRef.current?.select();
     }
   };
 
@@ -344,7 +344,7 @@ const Compartir = ({ operacion }) => {
                 size="small"
                 fullWidth
                 value={url}
-                inputRef={campoEnlace}
+                inputRef={campoEnlaceRef}
                 slotProps={{ htmlInput: { readOnly: true } }}
                 onFocus={(e) => e.target.select()}
               />

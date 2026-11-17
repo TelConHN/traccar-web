@@ -210,13 +210,13 @@ const indiceParaInsertar = (puntos, trazado, toque, metrosPorPixel) => {
 const estilo = (el, css) => Object.assign(el.style, css);
 
 export const PuntosEnMapa = ({ puntos, onCambiar, modo, trazado, soloGuias = false }) => {
-  const estado = useRef({});
-  estado.current = { puntos, onCambiar, modo, trazado, soloGuias };
+  const estadoRef = useRef({});
+  estadoRef.current = { puntos, onCambiar, modo, trazado, soloGuias };
 
   useEffect(() => {
     const alTocar = (e) => {
       if (e.originalEvent?.target?.closest?.('.maplibregl-marker')) return;
-      const s = estado.current;
+      const s = estadoRef.current;
       if (s.puntos.length >= MAX_PUNTOS) return;
       const { lat, lng } = e.lngLat;
       const metrosPorPixel =
@@ -280,13 +280,15 @@ export const PuntosEnMapa = ({ puntos, onCambiar, modo, trazado, soloGuias = fal
       });
       marcador.on('dragend', () => {
         const { lat, lng } = marcador.getLngLat();
-        const s = estado.current;
+        const s = estadoRef.current;
         s.onCambiar(
           s.puntos.map((x) => (x.id === p.id ? { ...x, latitud: lat, longitud: lng } : x)),
         );
       });
       // Tocar un punto guía lo quita (sobre el mapa es donde se ve cuál sobra). Una parada no:
       // tiene nombre y se quita desde la lista, a propósito.
+      // El elemento nace aquí y muere con su marcador (marcadores.forEach(remove)), y la escucha con él.
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
       el.addEventListener('click', (ev) => {
         ev.stopPropagation();
         if (arrastrado) {
@@ -294,7 +296,7 @@ export const PuntosEnMapa = ({ puntos, onCambiar, modo, trazado, soloGuias = fal
           return;
         }
         if (!p.guia) return;
-        const s = estado.current;
+        const s = estadoRef.current;
         s.onCambiar(s.puntos.filter((x) => x.id !== p.id));
       });
       return marcador;

@@ -147,8 +147,8 @@ const Reportes = ({ perfil }) => {
   const telefono = useMediaQuery((tema) => tema.breakpoints.down('lg'));
   const theme = useTheme();
   const navigate = useNavigate();
-  const [desde, setDesde] = useState(haceDias(6));
-  const [hasta, setHasta] = useState(hoy());
+  const [desde, setDesde] = useState(() => haceDias(6));
+  const [hasta, setHasta] = useState(() => hoy());
   const [pestana, setPestana] = useState(0);
   const [reporte, setReporte] = useState(null);
   const [error, setError] = useState('');

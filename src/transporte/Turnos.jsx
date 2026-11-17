@@ -81,7 +81,7 @@ const Turnos = ({ perfil }) => {
   const [guardando, setGuardando] = useState(false);
   const [errorDialogo, setErrorDialogo] = useState('');
   const [dia, setDia] = useState({ turnos: [], jornadas: [] });
-  const [fechaVista, setFechaVista] = useState(hoy());
+  const [fechaVista, setFechaVista] = useState(() => hoy());
 
   const cargar = async () => {
     try {

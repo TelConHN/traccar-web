@@ -29,7 +29,8 @@ const AvisoCobroDialog = () => {
 
   useEffect(() => {
     let vigente = true;
-    fetch('/api/rutas/cobro/aviso')
+    const controller = new AbortController();
+    fetch('/api/rutas/cobro/aviso', { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((a) => {
         if (vigente && a?.mostrar) {
@@ -41,6 +42,7 @@ const AvisoCobroDialog = () => {
       .catch(() => {});
     return () => {
       vigente = false;
+      controller.abort();
     };
   }, []);
 

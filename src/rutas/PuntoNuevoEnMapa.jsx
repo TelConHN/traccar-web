@@ -51,7 +51,10 @@ const PuntoNuevoEnMapa = ({ latitud, longitud, radioMetros, onMover }) => {
       if (map.getLayer(`${id}-relleno`)) map.removeLayer(`${id}-relleno`);
       if (map.getSource(id)) map.removeSource(id);
     };
-  }, []);
+    // Se crea una vez: con latitud/longitud como dependencias se rehacería en cada arrastre y lo
+    // cortaría; la posición la mueve el efecto de abajo. `id` no cambia nunca (useId).
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
+  }, [id]);
 
   useEffect(() => {
     marcadorRef.current?.setLngLat([longitud, latitud]);
@@ -60,7 +63,7 @@ const PuntoNuevoEnMapa = ({ latitud, longitud, radioMetros, onMover }) => {
       ?.setData(
         turfCircle([longitud, latitud], Number(radioMetros) || 50, { steps: 48, units: 'meters' }),
       );
-  }, [latitud, longitud, radioMetros]);
+  }, [id, latitud, longitud, radioMetros]);
 
   return null;
 };

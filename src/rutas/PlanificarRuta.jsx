@@ -782,6 +782,8 @@ const PlanificarRuta = ({
       maxZoom: 16,
       duration: 400,
     });
+    // Solo cuando cambian las paradas (su firma), no en cada render: ver el comentario de arriba.
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [firmaParadas]);
 
   // Sin paradas, el mapa abre donde está el vehículo elegido. Una vez por vehículo: el vehículo
@@ -793,6 +795,8 @@ const PlanificarRuta = ({
       center: [posicionVehiculo.longitude, posicionVehiculo.latitude],
       zoom: Math.max(map.getZoom(), 12),
     });
+    // Una vez por vehículo, a propósito: seguirlo le quitaría el mapa a quien planifica.
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [vehiculo, hayPosicion]);
 
   const km = resultado?.distanciaKm ?? vistaPrevia?.capturado?.distanciaKm;

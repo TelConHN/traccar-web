@@ -149,6 +149,7 @@ const TourGuiado = ({ pasos, abierto, onCerrar }) => {
     if (paso.ruta && pathname !== paso.ruta) navigate(paso.ruta);
     paso.alMostrar?.({ telefono });
     // Solo al llegar al paso: `pathname` cambia por el propio navigate.
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [abierto, indice]);
 
   // Medir lo que se resalta. Lo que se señala puede aparecer un momento después (una sección que
@@ -196,6 +197,7 @@ const TourGuiado = ({ pasos, abierto, onCerrar }) => {
     };
     // Por número de paso y no por el objeto: los pasos del mapa se rearman con cada posición
     // nueva, y eso reiniciaba la medición (y el desplazamiento) cada pocos segundos.
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [abierto, indice, objetivo, pathname, menosMovimiento, telefono]);
 
   const ir = useCallback(

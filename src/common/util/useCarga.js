@@ -33,8 +33,9 @@ const useCarga = (deviceId) => {
   useEffect(() => {
     if (!deviceId) return undefined;
     let vigente = true;
+    const controller = new AbortController();
     setCargandoAsignados(true);
-    fetch(`/api/products?deviceId=${deviceId}`)
+    fetch(`/api/products?deviceId=${deviceId}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : []))
       .catch(() => [])
       .then((lista) => {
@@ -45,6 +46,7 @@ const useCarga = (deviceId) => {
       });
     return () => {
       vigente = false;
+      controller.abort();
     };
   }, [deviceId]);
 

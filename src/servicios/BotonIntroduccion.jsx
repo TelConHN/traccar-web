@@ -37,9 +37,9 @@ const BotonIntroduccion = ({ onAbrir }) => {
   const theme = useTheme();
   // El control vive fuera de React: se le pasa una referencia para que siempre llame a la
   // función actual sin tener que sacarlo y volverlo a poner.
-  const alTocar = useRef(onAbrir);
-  alTocar.current = onAbrir;
-  const control = useMemo(() => new IntroduccionControl(alTocar), []);
+  const alTocarRef = useRef(onAbrir);
+  alTocarRef.current = onAbrir;
+  const control = useMemo(() => new IntroduccionControl(alTocarRef), []);
 
   useEffect(() => {
     map.addControl(control, theme.direction === 'rtl' ? 'top-left' : 'top-right');

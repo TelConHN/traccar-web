@@ -646,10 +646,10 @@ const PanelRecorrido = ({ datos, onVer, elegido, onElegir }) => (
 const SeguirContenido = () => {
   const { codigo } = useParams();
   const escritorio = useMediaQuery(tema.breakpoints.up('md'));
-  const contenedor = useRef(null);
-  const mapa = useRef(null);
-  const marcadores = useRef({ paradas: [], buses: new Map() });
-  const encuadrado = useRef(false);
+  const contenedorRef = useRef(null);
+  const mapaRef = useRef(null);
+  const marcadoresRef = useRef({ paradas: [], buses: new Map() });
+  const encuadradoRef = useRef(false);
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState('');
   const [capa, setCapa] = useState('mapa');
@@ -663,16 +663,18 @@ const SeguirContenido = () => {
 
   // Clave de Google del servidor, si la hay (sin ella, los mosaicos públicos de Google).
   useEffect(() => {
-    fetch('/api/server', { credentials: 'omit' })
+    const controller = new AbortController();
+    fetch('/api/server', { credentials: 'omit', signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((s) => s?.attributes?.googleKey && setGoogleKey(s.attributes.googleKey))
       .catch(() => {});
+    return () => controller.abort();
   }, []);
 
   // El mapa, una vez.
   useEffect(() => {
     const m = new maplibregl.Map({
-      container: contenedor.current,
+      container: contenedorRef.current,
       style: estiloGoogle('mapa', null),
       center: [-87.2068, 14.0723],
       zoom: 12,
@@ -685,8 +687,8 @@ const SeguirContenido = () => {
     // El contenedor toma su alto final después de montar (grilla, hoja inferior): sin esto el mapa
     // queda con el tamaño del primer instante y deja una franja vacía.
     const observador = new ResizeObserver(() => m.resize());
-    observador.observe(contenedor.current);
-    mapa.current = m;
+    observador.observe(contenedorRef.current);
+    mapaRef.current = m;
     return () => {
       observador.disconnect();
       m.remove();
@@ -695,7 +697,7 @@ const SeguirContenido = () => {
 
   // Cambiar Mapa / Satélite: el estilo base se reemplaza y las capas propias se vuelven a dibujar.
   useEffect(() => {
-    const m = mapa.current;
+    const m = mapaRef.current;
     if (!m) return;
     setListo(false);
     m.setStyle(estiloGoogle(capa, googleKey));
@@ -748,7 +750,7 @@ const SeguirContenido = () => {
 
   // Trazo con sentido de marcha.
   useEffect(() => {
-    const m = mapa.current;
+    const m = mapaRef.current;
     // `m.style` es null mientras el teléfono le quitó el contexto WebGL al mapa (la página en
     // segundo plano): los datos siguen llegando cada 15 s y tocar capas ahí rompía la página.
     if (!m || !listo || !m.style) return;
@@ -803,7 +805,7 @@ const SeguirContenido = () => {
   // Con un bus elegido: su tramo pendiente en amarillo —el mismo color del bus— encima del
   // recorrido, y todo lo demás tenue. Sin nadie elegido, el mapa queda como estaba.
   useEffect(() => {
-    const m = mapa.current;
+    const m = mapaRef.current;
     if (!m || !listo || !m.style || !m.getLayer('recorrido-linea')) return;
     // Con varios recorridos se apagan los ajenos; con uno solo se apaga por igual, porque lo que
     // resalta es el tramo del bus, no el recorrido.
@@ -847,7 +849,7 @@ const SeguirContenido = () => {
   // cuadro (tiene su propia opacidad para los marcadores tapados), así que ponerla a mano se
   // borraba sola y el resaltado no se veía.
   useEffect(() => {
-    marcadores.current.buses.forEach((marcador, clave) => {
+    marcadoresRef.current.buses.forEach((marcador, clave) => {
       marcador.setOpacity(elegido && elegido !== clave ? '0.4' : '1');
       marcador.getElement().style.zIndex = elegido === clave ? '3' : '1';
     });
@@ -855,10 +857,10 @@ const SeguirContenido = () => {
 
   // Paradas y buses (los buses se mueven suave de una posición a la siguiente).
   useEffect(() => {
-    const m = mapa.current;
+    const m = mapaRef.current;
     if (!m) return;
-    marcadores.current.paradas.forEach((x) => x.remove());
-    marcadores.current.paradas = capas.paradas.map((p) =>
+    marcadoresRef.current.paradas.forEach((x) => x.remove());
+    marcadoresRef.current.paradas = capas.paradas.map((p) =>
       new maplibregl.Marker({ element: elementoParada(p) })
         .setLngLat([p.lon, p.lat])
         .setPopup(
@@ -874,11 +876,13 @@ const SeguirContenido = () => {
     const vistos = new Set();
     capas.buses.forEach((b) => {
       vistos.add(b.clave);
-      let marcador = marcadores.current.buses.get(b.clave);
+      let marcador = marcadoresRef.current.buses.get(b.clave);
       if (!marcador) {
         const elemento = elementoBus(b.etiqueta);
         elemento.style.cursor = 'pointer';
         // Tocarlo de nuevo lo suelta: es un resaltado, no un filtro del que haya que salir.
+        // El elemento nace aquí y muere con su marcador (marker.remove()), y la escucha con él.
+        // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener
         elemento.addEventListener('click', (ev) => {
           ev.stopPropagation();
           setElegido((actual) => (actual === b.clave ? null : b.clave));
@@ -887,7 +891,7 @@ const SeguirContenido = () => {
         marcador = new maplibregl.Marker({ element: elemento, anchor: 'bottom' })
           .setLngLat([b.lon, b.lat])
           .addTo(m);
-        marcadores.current.buses.set(b.clave, marcador);
+        marcadoresRef.current.buses.set(b.clave, marcador);
       } else {
         const desde = marcador.getLngLat();
         const inicio = performance.now();
@@ -907,10 +911,10 @@ const SeguirContenido = () => {
         if (b.rumbo != null) flecha.style.transform = `rotate(${b.rumbo}deg)`;
       }
     });
-    marcadores.current.buses.forEach((marcador, clave) => {
+    marcadoresRef.current.buses.forEach((marcador, clave) => {
       if (!vistos.has(clave)) {
         marcador.remove();
-        marcadores.current.buses.delete(clave);
+        marcadoresRef.current.buses.delete(clave);
       }
     });
 
@@ -920,22 +924,22 @@ const SeguirContenido = () => {
       ...capas.paradas.map((p) => [p.lon, p.lat]),
       ...capas.buses.map((b) => [b.lon, b.lat]),
     ];
-    if (puntos.length > 0 && !encuadrado.current) {
+    if (puntos.length > 0 && !encuadradoRef.current) {
       const caja = puntos.reduce(
         (c, p) => c.extend(p),
         new maplibregl.LngLatBounds(puntos[0], puntos[0]),
       );
       m.fitBounds(caja, { padding: escritorio ? 60 : 36, maxZoom: 15, duration: 0 });
-      encuadrado.current = true;
+      encuadradoRef.current = true;
     }
   }, [capas, escritorio]);
 
   // `acercar` en false centra sin cambiar el zoom: al elegir un bus se quiere ver dónde va SIN
   // perder de vista el recorrido completo. Para una parada sí se acerca: es un punto.
   const ver = (p, acercar = true) =>
-    mapa.current?.flyTo({
+    mapaRef.current?.flyTo({
       center: [p.lon, p.lat],
-      zoom: acercar ? 16 : mapa.current.getZoom(),
+      zoom: acercar ? 16 : mapaRef.current.getZoom(),
       duration: 700,
     });
 
@@ -1080,7 +1084,7 @@ const SeguirContenido = () => {
             <Box sx={{ overflow: 'auto', flexGrow: 1 }}>{panel}</Box>
           </Box>
           <Box sx={{ position: 'relative', minHeight: 0 }}>
-            <Box ref={contenedor} sx={{ position: 'absolute', inset: 0 }} />
+            <Box ref={contenedorRef} sx={{ position: 'absolute', inset: 0 }} />
             {selectorCapa}
           </Box>
         </>
@@ -1088,7 +1092,7 @@ const SeguirContenido = () => {
         <>
           {encabezado}
           <Box sx={{ position: 'relative', minHeight: 0 }}>
-            <Box ref={contenedor} sx={{ position: 'absolute', inset: 0 }} />
+            <Box ref={contenedorRef} sx={{ position: 'absolute', inset: 0 }} />
             {selectorCapa}
           </Box>
           <Paper

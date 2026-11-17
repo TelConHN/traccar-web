@@ -324,7 +324,7 @@ const TransportePage = () => {
     if (requiereCliente || sinServicio || !operacion || !existeSeccion(pedida, operacion)) {
       navigate('/transporte', { replace: true });
     }
-  }, [perfil, operacion, pedida, navigate, sinServicio, requiereCliente]);
+  }, [perfil, operacion, pedida, navigate, sinServicio, requiereCliente, viajeId]);
 
   const secciones = useSeccionesTransporte(sinServicio || requiereCliente ? null : operacion);
 

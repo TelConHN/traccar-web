@@ -130,26 +130,29 @@ const LineaEnMapa = ({ coordenadas, crudo, paradas, color, resaltada, etiqueta }
         if (map.getSource(`${id}-${fuente}`)) map.removeSource(`${id}-${fuente}`);
       }
     };
-    // Las capas se crean una vez; los datos se actualizan abajo.
-  }, []);
+    // Las capas se crean una vez; los datos se actualizan abajo. Recrearlas al cambiar color, tema
+    // o resaltado las dejaría vacías (los datos los ponen los otros efectos); el resaltado tiene
+    // su propio efecto. `id` no cambia nunca (useId).
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
+  }, [id]);
 
   useEffect(() => {
     map.getSource(`${id}-linea`)?.setData({
       ...lineaGeoJson(coordenadas),
       properties: { etiqueta: etiqueta ?? '' },
     });
-  }, [coordenadas, etiqueta]);
+  }, [id, coordenadas, etiqueta]);
 
   useEffect(() => {
     map.getSource(`${id}-crudo`)?.setData(lineaGeoJson(crudo));
-  }, [crudo]);
+  }, [id, crudo]);
 
   useEffect(() => {
     if (map.getLayer(`${id}-linea`)) {
       map.setPaintProperty(`${id}-linea`, 'line-width', resaltada ? 5 : 3);
       map.setPaintProperty(`${id}-linea`, 'line-opacity', resaltada ? 1 : 0.3);
     }
-  }, [resaltada]);
+  }, [id, resaltada]);
 
   useEffect(() => {
     const lista = paradas ?? [];
@@ -174,7 +177,7 @@ const LineaEnMapa = ({ coordenadas, crudo, paradas, color, resaltada, etiqueta }
         }),
       ),
     });
-  }, [paradas]);
+  }, [id, paradas]);
 
   return null;
 };

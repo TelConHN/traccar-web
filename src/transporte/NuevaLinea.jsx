@@ -134,7 +134,7 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
 
   // Paso 1 · viaje
   const [deviceId, setDeviceId] = useState(vehiculos[0]?.id ?? '');
-  const [fecha, setFecha] = useState(ayer());
+  const [fecha, setFecha] = useState(() => ayer());
   const [viajes, setViajes] = useState(null);
   const [viajeElegido, setViajeElegido] = useState(null);
   const [cortarIdaVuelta, setCortarIdaVuelta] = useState(false);
@@ -180,6 +180,8 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
 
   useEffect(() => {
     if (metodo === 'viaje') cargarViajes();
+    // cargarViajes depende justo de deviceId y fecha; como función nueva en cada render, no va.
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [deviceId, fecha, metodo]);
 
   const dibujando = (paso === 0 && metodo === 'paradas') || corrigiendo;
@@ -414,6 +416,8 @@ const NuevaLinea = ({ vehiculos, operacion }) => {
           [buses[0][0] + 0.015, buses[0][1] + 0.015],
         ]
       : buses;
+    // Por «hay posiciones», no por cada posición: si no, el mapa se reencuadra con cada movimiento.
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [variantes, dibujandoDeCero, hayPosiciones]);
 
   return (

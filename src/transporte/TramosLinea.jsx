@@ -54,6 +54,8 @@ const TramosLinea = ({
 
   useEffect(() => {
     cargar();
+    // `cargar` es nueva en cada render: con ella aquí, el efecto pediría los tramos en bucle.
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [linea.id, variante.id, variante.geometria]);
 
   // Un tramo marcado en el mapa (inicio y fin) llega desde LineaDetalle.
@@ -62,6 +64,8 @@ const TramosLinea = ({
     setTramos((ts) => [...ts, { ...tramoNuevo, limiteKmh: 60 }]);
     setSucio(true);
     onTramoUsado?.();
+    // Solo cuando llega un tramo nuevo, no cuando el padre rehace su función.
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [tramoNuevo]);
 
   // Lo que se dibuja: cada tramo de su color, y cada propuesta con la calle que usan los buses.
@@ -81,6 +85,8 @@ const TramosLinea = ({
       capas.push({ clave: `p-${i}`, coordenadas: p.trazo, color: '#16a34a' });
     });
     onCapas?.(capas);
+    // Solo cuando cambia lo que se dibuja, no cuando el padre rehace su función.
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [tramos, propuestas, variante.geometria]);
 
   const guardar = async () => {

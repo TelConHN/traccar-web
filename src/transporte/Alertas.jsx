@@ -114,8 +114,8 @@ const Alertas = ({ puedeEditar }) => {
   const { classes } = useStyles();
   const navigate = useNavigate();
   const telefono = useMediaQuery((theme) => theme.breakpoints.down('md'));
-  const [desde, setDesde] = useState(haceDias(6));
-  const [hasta, setHasta] = useState(hoy());
+  const [desde, setDesde] = useState(() => haceDias(6));
+  const [hasta, setHasta] = useState(() => hoy());
   const [pestana, setPestana] = useState(0);
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState('');
