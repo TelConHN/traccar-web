@@ -7,6 +7,10 @@ export default (t) =>
         name: t('attributeTelegramChatId'),
         type: 'string',
       },
+      'notificator.telegram.sendLocation': {
+        name: t('attributeTelegramSendLocation'),
+        type: 'boolean',
+      },
       pushoverUserKey: {
         name: t('attributePushoverUserKey'),
         type: 'string',
@@ -65,6 +69,10 @@ export default (t) =>
       },
       billingLink: {
         name: t('userBilling'),
+        type: 'string',
+      },
+      'openid.clients': {
+        name: t('attributeOpenIdClients'),
         type: 'string',
       },
     }),

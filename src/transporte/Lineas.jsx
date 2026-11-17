@@ -138,7 +138,7 @@ const Lineas = ({ puedeEditar, descripcion }) => {
                     ))}
                   </Stack>
                 }
-                secondaryTypographyProps={{ component: 'div' }}
+                slotProps={{ secondary: { component: 'div' } }}
               />
             </ListItemButton>
           ))}

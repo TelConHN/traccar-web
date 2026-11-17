@@ -32,6 +32,7 @@ export default (t) =>
       altitude: {
         name: t('positionAltitude'),
         type: 'number',
+        dataType: 'altitude',
         property: true,
       },
       accuracy: {
@@ -112,6 +113,10 @@ export default (t) =>
       },
       engineTemp: {
         name: t('positionEngineTemp'),
+        type: 'number',
+      },
+      engineLoad: {
+        name: t('positionEngineLoad'),
         type: 'number',
       },
       gps: {
@@ -234,10 +239,25 @@ export default (t) =>
       fuelUsed: {
         name: t('positionFuelUsed'),
         type: 'number',
+        dataType: 'volume',
       },
       fuelConsumption: {
         name: t('positionFuelConsumption'),
         type: 'number',
+      },
+      fuelLevel: {
+        name: t('positionFuelLevel'),
+        type: 'number',
+      },
+      energy: {
+        name: t('positionEnergy'),
+        type: 'number',
+        dataType: 'energy',
+      },
+      energyLevel: {
+        name: t('positionEnergyLevel'),
+        type: 'number',
+        dataType: 'percentage',
       },
       versionFw: {
         name: t('positionVersionFw'),
@@ -255,9 +275,17 @@ export default (t) =>
         name: t('positionIgnition'),
         type: 'boolean',
       },
+      business: {
+        name: t('positionBusiness'),
+        type: 'boolean',
+      },
       flags: {
         name: t('positionFlags'),
         type: 'string',
+      },
+      antenna: {
+        name: t('positionAntenna'),
+        type: 'boolean',
       },
       charge: {
         name: t('positionCharge'),
@@ -353,6 +381,26 @@ export default (t) =>
         name: t('alarmLock'),
         type: 'boolean',
       },
+      door: {
+        name: t('alarmDoor'),
+        type: 'boolean',
+      },
+      axleWeight: {
+        name: t('positionAxleWeight'),
+        type: 'number',
+      },
+      gSensor: {
+        name: t('positionGSensor'),
+        type: 'string',
+      },
+      iccid: {
+        name: t('positionIccid'),
+        type: 'string',
+      },
+      phone: {
+        name: t('sharedPhone'),
+        type: 'string',
+      },
       dtcs: {
         name: t('positionDtcs'),
         type: 'string',
@@ -418,7 +466,7 @@ export default (t) =>
       speedLimit: {
         name: t('attributeSpeedLimit'),
         type: 'number',
-        subtype: 'speed',
+        dataType: 'speed',
       },
     }),
     [t],

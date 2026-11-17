@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useDispatch, useSelector } from 'react-redux';
@@ -12,11 +12,12 @@ import MapPadding from '../map/MapPadding';
 import { devicesActions } from '../store';
 import MapDefaultCamera from '../map/main/MapDefaultCamera';
 import MapLiveRoutes from '../map/main/MapLiveRoutes';
-import MapPositions from '../map/MapPositions';
+import MapPositionMarkers from '../map/MapPositionMarkers';
 import MapOverlay from '../map/overlay/MapOverlay';
-import MapGeocoder from '../map/geocoder/MapGeocoder';
+import MapGeocoder from '../map/control/MapGeocoder';
 import MapScale from '../map/MapScale';
-import MapNotification from '../map/notification/MapNotification';
+import MapRuler from '../map/control/MapRuler';
+import MapNotification from '../map/control/MapNotification';
 import useFeatures from '../common/util/useFeatures';
 
 const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
@@ -28,6 +29,8 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
   const eventsAvailable = useSelector((state) => !!state.events.items.length);
 
   const features = useFeatures();
+
+  const [rulerActive, setRulerActive] = useState(false);
 
   const onMarkerClick = useCallback(
     (_, deviceId) => {
@@ -43,23 +46,25 @@ const MainMap = ({ filteredPositions, selectedPosition, onEventsClick }) => {
         <MapGeofence />
         <MapAccuracy positions={filteredPositions} />
         <MapLiveRoutes deviceIds={filteredPositions.map((p) => p.deviceId)} />
-        <MapPositions
+        <PoiMap />
+        <MapPositionMarkers
           positions={filteredPositions}
           onMarkerClick={onMarkerClick}
           selectedPosition={selectedPosition}
           showStatus
+          disabled={rulerActive}
         />
-        <MapDefaultCamera />
+        <MapDefaultCamera filteredPositions={filteredPositions} />
         <MapSelectedDevice />
-        <PoiMap />
+        <MapRuler positions={filteredPositions} onActiveChange={setRulerActive} />
+        {!features.disableEvents && (
+          <MapNotification enabled={eventsAvailable} onClick={onEventsClick} />
+        )}
       </MapView>
       <MapScale />
       <MapCurrentLocation />
       <MapGeocoder />
-      {!features.disableEvents && (
-        <MapNotification enabled={eventsAvailable} onClick={onEventsClick} />
-      )}
-      {desktop && (
+      {desktop && !features.disableDeviceList && (
         <MapPadding
           start={
             parseInt(theme.dimensions.drawerWidthDesktop, 10) + parseInt(theme.spacing(1.5), 10)

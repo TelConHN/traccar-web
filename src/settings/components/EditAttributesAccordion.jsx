@@ -20,18 +20,12 @@ import AddIcon from '@mui/icons-material/Add';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddAttributeDialog from './AddAttributeDialog';
 import { useTranslation } from '../../common/components/LocalizationProvider';
-import { useAttributePreference } from '../../common/util/preferences';
+import useAttributeUnits from '../../common/util/useAttributeUnits';
 import {
-  distanceFromMeters,
-  distanceToMeters,
-  distanceUnitString,
-  speedFromKnots,
-  speedToKnots,
-  speedUnitString,
-  volumeFromLiters,
-  volumeToLiters,
-  volumeUnitString,
-} from '../../common/util/converter';
+  attributeFromRaw,
+  attributeToRaw,
+  attributeUnitString,
+} from '../../common/util/attributeUnits';
 import useFeatures from '../../common/util/useFeatures';
 import useSettingsStyles from '../common/useSettingsStyles';
 
@@ -47,28 +41,17 @@ const EditAttributesAccordion = ({
 
   const features = useFeatures();
 
-  const speedUnit = useAttributePreference('speedUnit');
-  const distanceUnit = useAttributePreference('distanceUnit');
-  const volumeUnit = useAttributePreference('volumeUnit');
+  const units = useAttributeUnits();
 
   const [addDialogShown, setAddDialogShown] = useState(false);
 
-  const updateAttribute = (key, value, type, subtype) => {
+  const updateAttribute = (key, value, type, dataType) => {
     const updatedAttributes = { ...attributes };
-    switch (subtype) {
-      case 'speed':
-        updatedAttributes[key] = speedToKnots(Number(value), speedUnit);
-        break;
-      case 'distance':
-        updatedAttributes[key] = distanceToMeters(Number(value), distanceUnit);
-        break;
-      case 'volume':
-        updatedAttributes[key] = volumeToLiters(Number(value), volumeUnit);
-        break;
-      default:
-        updatedAttributes[key] = type === 'number' ? Number(value) : value;
-        break;
-    }
+    updatedAttributes[key] = attributeToRaw(
+      type === 'number' ? Number(value) : value,
+      dataType,
+      units,
+    );
     setAttributes(updatedAttributes);
   };
 
@@ -78,19 +61,11 @@ const EditAttributesAccordion = ({
     setAttributes(updatedAttributes);
   };
 
-  const getAttributeName = (key, subtype) => {
+  const getAttributeName = (key, dataType) => {
     const definition = definitions[key];
     const name = definition ? definition.name : key;
-    switch (subtype) {
-      case 'speed':
-        return `${name} (${speedUnitString(speedUnit, t)})`;
-      case 'distance':
-        return `${name} (${distanceUnitString(distanceUnit, t)})`;
-      case 'volume':
-        return `${name} (${volumeUnitString(volumeUnit, t)})`;
-      default:
-        return name;
-    }
+    const unit = attributeUnitString(dataType, units, t);
+    return unit ? `${name} (${unit})` : name;
   };
 
   const getAttributeType = (value) => {
@@ -103,26 +78,12 @@ const EditAttributesAccordion = ({
     return 'string';
   };
 
-  const getAttributeSubtype = (key) => {
+  const getAttributeDataType = (key) => {
     const definition = definitions[key];
-    return definition && definition.subtype;
+    return definition && definition.dataType;
   };
 
-  const getDisplayValue = (value, subtype) => {
-    if (value) {
-      switch (subtype) {
-        case 'speed':
-          return speedFromKnots(value, speedUnit);
-        case 'distance':
-          return distanceFromMeters(value, distanceUnit);
-        case 'volume':
-          return volumeFromLiters(value, volumeUnit);
-        default:
-          return value;
-      }
-    }
-    return '';
-  };
+  const getDisplayValue = (value, dataType) => attributeFromRaw(value, dataType, units) ?? '';
 
   const convertToList = (attributes) => {
     const booleanList = [];
@@ -139,20 +100,20 @@ const EditAttributesAccordion = ({
       .forEach((key) => {
         const value = attributes[key];
         const type = getAttributeType(value);
-        const subtype = getAttributeSubtype(key);
+        const dataType = getAttributeDataType(key);
         if (type === 'boolean') {
           booleanList.push({
             key,
             value,
             type,
-            subtype,
+            dataType,
           });
         } else {
           otherList.push({
             key,
             value,
             type,
-            subtype,
+            dataType,
           });
         }
       });
@@ -184,7 +145,7 @@ const EditAttributesAccordion = ({
         <Typography variant="subtitle1">{t('sharedAttributes')}</Typography>
       </AccordionSummary>
       <AccordionDetails className={classes.details}>
-        {convertToList(attributes).map(({ key, value, type, subtype }) => {
+        {convertToList(attributes).map(({ key, value, type, dataType }) => {
           if (type === 'boolean') {
             return (
               <Grid container direction="row" justifyContent="space-between" key={key}>
@@ -195,7 +156,7 @@ const EditAttributesAccordion = ({
                       onChange={(e) => updateAttribute(key, e.target.checked)}
                     />
                   }
-                  label={getAttributeName(key, subtype)}
+                  label={getAttributeName(key, dataType)}
                 />
                 <IconButton
                   size="small"
@@ -209,12 +170,12 @@ const EditAttributesAccordion = ({
           }
           return (
             <FormControl key={key}>
-              <InputLabel>{getAttributeName(key, subtype)}</InputLabel>
+              <InputLabel>{getAttributeName(key, dataType)}</InputLabel>
               <OutlinedInput
-                label={getAttributeName(key, subtype)}
+                label={getAttributeName(key, dataType)}
                 type={type === 'number' ? 'number' : 'text'}
-                value={getDisplayValue(value, subtype)}
-                onChange={(e) => updateAttribute(key, e.target.value, type, subtype)}
+                value={getDisplayValue(value, dataType)}
+                onChange={(e) => updateAttribute(key, e.target.value, type, dataType)}
                 autoFocus={focusAttribute === key}
                 endAdornment={
                   <InputAdornment position="end">

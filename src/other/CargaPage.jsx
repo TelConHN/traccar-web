@@ -126,13 +126,15 @@ const CargaPage = () => {
                 value={buscado}
                 onChange={(e) => setBuscado(e.target.value)}
                 placeholder={t('productSearch')}
-                inputProps={{ 'aria-label': t('productSearch') }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  htmlInput: { 'aria-label': t('productSearch') },
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
               />
             )}
@@ -146,7 +148,7 @@ const CargaPage = () => {
                     aria-expanded={abierta}
                     sx={{ minHeight: 52 }}
                   >
-                    <ListItemText primary={nombre} primaryTypographyProps={{ fontWeight: 600 }} />
+                    <ListItemText primary={nombre} slotProps={{ primary: { fontWeight: 600 } }} />
                     <Typography color="text.secondary" sx={{ mr: 1 }}>
                       {items.length}
                     </Typography>
@@ -159,7 +161,7 @@ const CargaPage = () => {
                           <ListItemText
                             primary={p.nombre ?? p.codigo}
                             secondary={p.nombre ? p.codigo : null}
-                            secondaryTypographyProps={{ sx: { wordBreak: 'break-all' } }}
+                            slotProps={{ secondary: { sx: { wordBreak: 'break-all' } } }}
                           />
                           {p.aMano && (
                             <Chip

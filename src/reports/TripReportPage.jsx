@@ -20,10 +20,12 @@ import { useAdministrator, useReportAllowed } from '../common/util/permissions';
 import { useAttributePreference, usePreference } from '../common/util/preferences';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import PageLayout from '../common/components/PageLayout';
+import SelectField from '../common/components/SelectField';
 import ReportsMenu from './components/ReportsMenu';
 import ColumnSelect from './components/ColumnSelect';
+import ResizeHandle from './components/ResizeHandle';
 import usePersistedState from '../common/util/usePersistedState';
-import { useCatch, useEffectAsync } from '../reactHelper';
+import { useCatch, useCatchCallback, useAsyncTask } from '../reactHelper';
 import useReportStyles from './common/useReportStyles';
 import MapView from '../map/core/MapView';
 import MapRoutePath from '../map/MapRoutePath';
@@ -51,6 +53,7 @@ const columnsArray = [
   ['duration', 'reportDuration'],
   ['spentFuel', 'reportSpentFuel'],
   ['driverName', 'sharedDriver'],
+  ['business', 'sharedType'],
 ];
 const columnsMap = new Map(columnsArray);
 
@@ -74,12 +77,17 @@ const TripReportPage = () => {
     'distance',
     'averageSpeed',
   ]);
+  const [tripType, setTripType] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [route, setRoute] = useState(null);
 
-  const createMarkers = () => [
+  const filteredItems = items.filter(
+    (item) => !tripType || item.business === (tripType === 'business'),
+  );
+
+  const markers = selectedItem && [
     {
       latitude: selectedItem.startLat,
       longitude: selectedItem.startLon,
@@ -92,40 +100,44 @@ const TripReportPage = () => {
     },
   ];
 
-  useEffectAsync(async () => {
-    if (selectedItem) {
-      const query = new URLSearchParams({
-        deviceId: selectedItem.deviceId,
-        from: selectedItem.startTime,
-        to: selectedItem.endTime,
-      });
-      const response = await fetchOrThrow(`/api/reports/route?${query.toString()}`, {
-        headers: { Accept: 'application/json' },
-      });
-      setRoute(await response.json());
-    } else {
-      setRoute(null);
-    }
-  }, [selectedItem]);
+  useAsyncTask(
+    async ({ signal }) => {
+      if (selectedItem) {
+        const query = new URLSearchParams({
+          deviceId: selectedItem.deviceId,
+          from: selectedItem.startTime,
+          to: selectedItem.endTime,
+        });
+        const response = await fetchOrThrow(`api/reports/route?${query.toString()}`, {
+          headers: { Accept: 'application/json' },
+          signal,
+        });
+        setRoute(await response.json());
+      } else {
+        setRoute(null);
+      }
+    },
+    [selectedItem],
+  );
 
-  const onShow = useCatch(async ({ deviceIds, groupIds, from, to }) => {
+  const onShow = useCatchCallback(async ({ deviceIds, groupIds, from, to }) => {
     const query = new URLSearchParams({ from, to });
     deviceIds.forEach((deviceId) => query.append('deviceId', deviceId));
     groupIds.forEach((groupId) => query.append('groupId', groupId));
     setLoading(true);
     try {
-      const response = await fetchOrThrow(`/api/reports/trips?${query.toString()}`, {
+      const response = await fetchOrThrow(`api/reports/trips?${query.toString()}`, {
         headers: { Accept: 'application/json' },
       });
       setItems(await response.json());
     } finally {
       setLoading(false);
     }
-  });
+  }, []);
 
   const onExport = useCatch(async () => {
     const sheets = new Map();
-    items.forEach((item) => {
+    filteredItems.forEach((item) => {
       const deviceName = devices[item.deviceId].name;
       if (!sheets.has(deviceName)) {
         sheets.set(deviceName, []);
@@ -185,6 +197,8 @@ const TripReportPage = () => {
     switch (key) {
       case 'deviceId':
         return devices[value].name;
+      case 'business':
+        return t(value ? 'positionBusiness' : 'reportPrivate');
       case 'startTime':
       case 'endTime':
         return formatTime(value, 'minutes');
@@ -224,19 +238,22 @@ const TripReportPage = () => {
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportTrips']}>
       <div className={classes.container}>
         {selectedItem && (
-          <div className={classes.containerMap}>
-            <MapView>
-              <MapGeofence />
-              {route && (
-                <>
-                  <MapRoutePath positions={route} />
-                  <MapMarkers markers={createMarkers()} />
-                  <MapCamera positions={route} />
-                </>
-              )}
-            </MapView>
-            <MapScale />
-          </div>
+          <>
+            <div className={classes.containerMap}>
+              <MapView>
+                <MapGeofence />
+                {route && (
+                  <>
+                    <MapRoutePath positions={route} />
+                    <MapMarkers markers={markers} />
+                    <MapCamera positions={route} />
+                  </>
+                )}
+              </MapView>
+              <MapScale />
+            </div>
+            <ResizeHandle />
+          </>
         )}
         <div className={classes.containerMain}>
           <div className={classes.header}>
@@ -246,7 +263,23 @@ const TripReportPage = () => {
               onSchedule={onSchedule}
               deviceType="multiple"
               loading={loading}
+              formats={['xlsx']}
             >
+              <div className={classes.filterItem}>
+                <SelectField
+                  fullWidth
+                  label={t('sharedType')}
+                  value={tripType}
+                  data={[
+                    { id: 'business', name: t('positionBusiness') },
+                    { id: 'private', name: t('reportPrivate') },
+                  ]}
+                  onChange={(event) => {
+                    setTripType(event.target.value);
+                    setSelectedItem(null);
+                  }}
+                />
+              </div>
               <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
             </ReportFilter>
           </div>
@@ -262,7 +295,7 @@ const TripReportPage = () => {
             </TableHead>
             <TableBody>
               {!loading ? (
-                items.map((item) => (
+                filteredItems.map((item) => (
                   <TableRow key={item.startPositionId}>
                     <TableCell className={classes.columnAction} padding="none">
                       <div className={classes.columnActionContainer}>

@@ -443,7 +443,7 @@ const Pasajeros = ({ operacion }) => {
                         )}
                       </Stack>
                     }
-                    secondaryTypographyProps={{ component: 'div' }}
+                    slotProps={{ secondary: { component: 'div' } }}
                   />
                 </ListItem>
               ))}

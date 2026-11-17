@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   useMediaQuery,
   Select,
@@ -7,21 +7,15 @@ import {
   Button,
   TextField,
   Link,
-  Snackbar,
+  Alert,
   IconButton,
   Tooltip,
-  Box,
-  InputAdornment,
-  Alert,
   AlertTitle,
 } from '@mui/material';
 import CountryFlag from 'react-country-flag';
 import { makeStyles } from 'tss-react/mui';
-import CloseIcon from '@mui/icons-material/Close';
 import VpnLockIcon from '@mui/icons-material/VpnLock';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import FacebookIcon from '@mui/icons-material/Facebook';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
@@ -40,7 +34,8 @@ import {
 } from '../common/components/NativeInterface';
 import LogoImage from './LogoImage';
 import { useCatch } from '../reactHelper';
-import QrCodeDialog from '../common/components/QrCodeDialog';
+import ServerQrCodeDialog from '../common/components/ServerQrCodeDialog';
+import PasswordField from '../common/components/PasswordField';
 
 const useStyles = makeStyles()((theme) => ({
   options: {
@@ -84,6 +79,9 @@ const useStyles = makeStyles()((theme) => ({
       boxShadow: '0 4px 10px rgba(0, 0, 0, 0.15)',
     },
   },
+  flag: {
+    marginRight: theme.spacing(1),
+  },
 }));
 
 const SOCIAL_NETWORKS = [
@@ -117,8 +115,8 @@ const LoginPage = () => {
 
   const [email, setEmail] = usePersistedState('loginEmail', '');
   const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [code, setCode] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [showServerTooltip, setShowServerTooltip] = useState(false);
   const [showQr, setShowQr] = useState(false);
 
@@ -149,14 +147,15 @@ const LoginPage = () => {
   });
   const hasSocialLinks = Object.values(socialLinks).some((url) => url);
 
-  const handlePasswordLogin = async (event) => {
+  const handlePasswordLogin = useCatch(async (event) => {
     event.preventDefault();
-    setFailed(false);
+    setSubmitting(true);
     setSuspendida(false);
     setSesionVencida(false);
     try {
+      setFailed(false);
       const query = `email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
-      const response = await fetch('/api/session', {
+      const response = await fetch('api/session', {
         method: 'POST',
         body: new URLSearchParams(code.length ? `${query}&code=${code}` : query),
       });
@@ -168,6 +167,8 @@ const LoginPage = () => {
         navigate(target, { replace: true });
       } else if (response.status === 401 && response.headers.get('WWW-Authenticate') === 'TOTP') {
         setCodeEnabled(true);
+      } else if (response.status === 401) {
+        setFailed(true);
       } else {
         const text = await response.text();
         // El servidor solo llega a decir "User is disabled" DESPUÉS de validar la contraseña
@@ -179,35 +180,45 @@ const LoginPage = () => {
         }
         throw Error(text);
       }
-    } catch {
-      setFailed(true);
-      setPassword('');
+    } finally {
+      setSubmitting(false);
     }
-  };
-
-  const handleTokenLogin = useCatch(async (token) => {
-    const response = await fetch(`/api/session?token=${encodeURIComponent(token)}`);
-    if (!response.ok) {
-      const text = await response.text();
-      if (/token has (expired|been revoked)/i.test(text)) {
-        setSesionVencida(true);
-        return;
-      }
-      throw Error(text);
-    }
-    const user = await response.json();
-    dispatch(sessionActions.updateUser(user));
-    navigate('/');
   });
 
+  const handleTokenLogin = useCatch(async (token) => {
+    const response = await fetch(`api/session?token=${encodeURIComponent(token)}`);
+    if (response.ok) {
+      const user = await response.json();
+      dispatch(sessionActions.updateUser(user));
+      navigate('/');
+      return;
+    }
+    const text = await response.text();
+    if (response.status === 401) {
+      // La app olvida el token que ya no sirve (así no lo vuelve a intentar en cada apertura).
+      nativePostMessage('logout');
+    }
+    // Vencido o revocado: el servidor lo dice en inglés y la persona no sabía qué hacer.
+    if (/token has (expired|been revoked)/i.test(text)) {
+      setSesionVencida(true);
+      return;
+    }
+    if (response.status !== 401) {
+      throw Error(text);
+    }
+  });
+
+  const handleTokenLoginRef = useRef(handleTokenLogin);
+  handleTokenLoginRef.current = handleTokenLogin;
+
   const handleOpenIdLogin = () => {
-    document.location = '/api/session/openid/auth';
+    document.location = 'api/session/openid/auth';
   };
 
   useEffect(() => nativePostMessage('authentication'), []);
 
   useEffect(() => {
-    const listener = (token) => handleTokenLogin(token);
+    const listener = (token) => handleTokenLoginRef.current(token);
     handleLoginTokenListeners.add(listener);
     return () => handleLoginTokenListeners.delete(listener);
   }, []);
@@ -243,9 +254,9 @@ const LoginPage = () => {
             <Select value={language} onChange={(e) => setLocalLanguage(e.target.value)}>
               {languageList.map((it) => (
                 <MenuItem key={it.code} value={it.code}>
-                  <Box component="span" sx={{ mr: 1 }}>
+                  <span className={classes.flag}>
                     <CountryFlag countryCode={it.country} svg />
-                  </Box>
+                  </span>
                   {it.name}
                 </MenuItem>
               ))}
@@ -256,6 +267,11 @@ const LoginPage = () => {
       <div className={classes.container}>
         {useMediaQuery(theme.breakpoints.down('lg')) && (
           <LogoImage color={theme.palette.primary.main} />
+        )}
+        {!!announcement && !announcementShown && (
+          <Alert severity="info" onClose={() => setAnnouncementShown(true)}>
+            {announcement}
+          </Alert>
         )}
         {!openIdForced && (
           <>
@@ -270,31 +286,15 @@ const LoginPage = () => {
               onChange={(e) => setEmail(e.target.value)}
               helperText={failed && 'Invalid username or password'}
             />
-            <TextField
+            <PasswordField
               required
               error={failed}
               label={t('userPassword')}
               name="password"
               value={password}
-              type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               autoFocus={!!email}
               onChange={(e) => setPassword(e.target.value)}
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                        size="small"
-                      >
-                        {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                },
-              }}
             />
             {suspendida && (
               <Alert severity="warning">
@@ -324,14 +324,19 @@ const LoginPage = () => {
               type="submit"
               variant="contained"
               color="secondary"
-              disabled={!email || !password || (codeEnabled && !code)}
+              disabled={submitting || !email || !password || (codeEnabled && !code)}
             >
               {t('loginLogin')}
             </Button>
           </>
         )}
         {openIdEnabled && (
-          <Button onClick={() => handleOpenIdLogin()} variant="contained" color="secondary">
+          <Button
+            onClick={() => handleOpenIdLogin()}
+            variant="contained"
+            color="secondary"
+            disabled={submitting}
+          >
             {t('loginOpenId')}
           </Button>
         )}
@@ -361,34 +366,28 @@ const LoginPage = () => {
         )}
         {hasSocialLinks && (
           <div className={classes.socialContainer}>
-            {SOCIAL_NETWORKS.map(({ key, label, icon: Icon, color }) => socialLinks[key] && (
-              <Tooltip key={key} title={label} arrow>
-                <IconButton
-                  className={classes.socialButton}
-                  component="a"
-                  href={socialLinks[key]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={label}
-                  sx={{ color }}
-                >
-                  <Icon />
-                </IconButton>
-              </Tooltip>
-            ))}
+            {SOCIAL_NETWORKS.map(
+              ({ key, label, icon: Icon, color }) =>
+                socialLinks[key] && (
+                  <Tooltip key={key} title={label} arrow>
+                    <IconButton
+                      className={classes.socialButton}
+                      component="a"
+                      href={socialLinks[key]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={label}
+                      sx={{ color }}
+                    >
+                      <Icon />
+                    </IconButton>
+                  </Tooltip>
+                ),
+            )}
           </div>
         )}
       </div>
-      <QrCodeDialog open={showQr} onClose={() => setShowQr(false)} />
-      <Snackbar
-        open={!!announcement && !announcementShown}
-        message={announcement}
-        action={
-          <IconButton size="small" color="inherit" onClick={() => setAnnouncementShown(true)}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        }
-      />
+      <ServerQrCodeDialog open={showQr} onClose={() => setShowQr(false)} />
     </LoginLayout>
   );
 };

@@ -30,19 +30,19 @@ const SharePage = () => {
     type === 'group' ? state.groups.items[id] : state.devices.items[id],
   );
 
-  const [expiration, setExpiration] = useState(
-    dayjs().add(1, 'week').locale('en').format('YYYY-MM-DD'),
+  const [expiration, setExpiration] = useState(() =>
+    dayjs().add(1, 'week').locale('en').format('YYYY-MM-DDTHH:mm'),
   );
   const [link, setLink] = useState();
 
   const handleShare = useCatchCallback(async () => {
     const expirationTime = dayjs(expiration).toISOString();
-    const response = await fetchOrThrow(`/api/share/${type}`, {
+    const response = await fetchOrThrow(`api/share/${type}`, {
       method: 'POST',
       body: new URLSearchParams(`${type}Id=${id}&expiration=${expirationTime}`),
     });
     const token = await response.text();
-    setLink(`${window.location.origin}?token=${token}`);
+    setLink(`${document.baseURI}?token=${token}`);
   }, [id, expiration, type, setLink]);
 
   return (
@@ -60,7 +60,7 @@ const SharePage = () => {
             />
             <TextField
               label={t('userExpirationTime')}
-              type="date"
+              type="datetime-local"
               value={expiration}
               onChange={(e) => setExpiration(e.target.value)}
             />

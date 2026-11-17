@@ -1,10 +1,11 @@
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { usePreference } from '../../common/util/preferences';
 import { map } from '../core/MapView';
+import { toMapCoordinates } from '../core/mapUtil';
 
-const MapDefaultCamera = () => {
+const MapDefaultCamera = ({ filteredPositions }) => {
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
   const positions = useSelector((state) => state.session.positions);
 
@@ -20,7 +21,7 @@ const MapDefaultCamera = () => {
       const position = positions[selectedDeviceId];
       if (position) {
         map.jumpTo({
-          center: [position.longitude, position.latitude],
+          center: toMapCoordinates(position.longitude, position.latitude),
           zoom: Math.max(defaultZoom > 0 ? defaultZoom : map.getZoom(), 10),
         });
         setInitialized(true);
@@ -28,12 +29,14 @@ const MapDefaultCamera = () => {
     } else {
       if (defaultLatitude && defaultLongitude) {
         map.jumpTo({
-          center: [defaultLongitude, defaultLatitude],
+          center: toMapCoordinates(defaultLongitude, defaultLatitude),
           zoom: defaultZoom,
         });
         setInitialized(true);
       } else {
-        const coordinates = Object.values(positions).map((item) => [item.longitude, item.latitude]);
+        const coordinates = (filteredPositions || Object.values(positions)).map((item) =>
+          toMapCoordinates(item.longitude, item.latitude),
+        );
         if (coordinates.length > 1) {
           const bounds = coordinates.reduce(
             (bounds, item) => bounds.extend(item),
@@ -55,7 +58,15 @@ const MapDefaultCamera = () => {
         }
       }
     }
-  }, [selectedDeviceId, initialized, defaultLatitude, defaultLongitude, defaultZoom, positions]);
+  }, [
+    selectedDeviceId,
+    initialized,
+    defaultLatitude,
+    defaultLongitude,
+    defaultZoom,
+    positions,
+    filteredPositions,
+  ]);
 
   return null;
 };

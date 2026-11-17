@@ -43,7 +43,7 @@ import BackIcon from '../common/components/BackIcon';
 import MapView from '../map/core/MapView';
 import MapRouteCoordinates from '../map/MapRouteCoordinates';
 import MapMarkers from '../map/MapMarkers';
-import MapPositions from '../map/MapPositions';
+import MapPositionMarkers from '../map/MapPositionMarkers';
 import MapCamera from '../map/MapCamera';
 import BottomMenu from '../common/components/BottomMenu';
 import { useEffectAsync } from '../reactHelper';
@@ -292,7 +292,7 @@ const MiRutaPage = () => {
           <MapRouteCoordinates name="Falta" coordinates={restante} />
           <MapMarkers markers={marcadores} showTitles />
           {/* El vehículo, con el mismo ícono y color que en el mapa principal de Traccar. */}
-          <MapPositions positions={posicion ? [posicion] : []} titleField="name" />
+          <MapPositionMarkers positions={posicion ? [posicion] : []} titleField="name" />
         </MapView>
         {/* La cámara sigue al vehículo: el conductor no tiene que buscarse en el mapa. Sin
             posición todavía, encuadra la ruta completa. */}

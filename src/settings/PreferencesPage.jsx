@@ -68,7 +68,7 @@ const PreferencesPage = () => {
   const socket = useSelector((state) => state.session.socket);
 
   const [token, setToken] = useState(null);
-  const [tokenExpiration, setTokenExpiration] = useState(
+  const [tokenExpiration, setTokenExpiration] = useState(() =>
     dayjs().add(1, 'week').locale('en').format('YYYY-MM-DD'),
   );
 
@@ -81,7 +81,7 @@ const PreferencesPage = () => {
 
   const generateToken = useCatch(async () => {
     const expiration = dayjs(tokenExpiration, 'YYYY-MM-DD').toISOString();
-    const response = await fetchOrThrow('/api/session/token', {
+    const response = await fetchOrThrow('api/session/token', {
       method: 'POST',
       body: new URLSearchParams(`expiration=${expiration}`),
     });
@@ -94,7 +94,7 @@ const PreferencesPage = () => {
   }));
 
   const handleSave = useCatch(async () => {
-    const response = await fetchOrThrow(`/api/users/${user.id}`, {
+    const response = await fetchOrThrow(`api/users/${user.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...user, attributes }),
@@ -104,7 +104,7 @@ const PreferencesPage = () => {
   });
 
   const handleReboot = useCatch(async () => {
-    const response = await fetch('/api/server/reboot', { method: 'POST' });
+    const response = await fetch('api/server/reboot', { method: 'POST' });
     throw Error(response.statusText);
   });
 
@@ -156,18 +156,21 @@ const PreferencesPage = () => {
                   <InputLabel>{t('mapOverlay')}</InputLabel>
                   <Select
                     label={t('mapOverlay')}
-                    value={attributes.selectedMapOverlay || ''}
-                    onChange={(e) => {
-                      const clicked = mapOverlays.find((o) => o.id === e.target.value);
-                      if (!clicked || clicked.available) {
-                        setAttributes({ ...attributes, selectedMapOverlay: e.target.value });
+                    value={attributes.selectedMapOverlay?.split(',') || []}
+                    onChange={(e, child) => {
+                      const clicked = mapOverlays.find((o) => o.id === child.props.value);
+                      if (clicked.available) {
+                        setAttributes({
+                          ...attributes,
+                          selectedMapOverlay: e.target.value.join(','),
+                        });
                       } else if (clicked.id !== 'custom') {
                         const query = new URLSearchParams({ attribute: clicked.attribute });
                         navigate(`/settings/user/${user.id}?${query.toString()}`);
                       }
                     }}
+                    multiple
                   >
-                    <MenuItem value="">{'\u00a0'}</MenuItem>
                     {mapOverlays.map((overlay) => (
                       <MenuItem key={overlay.id} value={overlay.id}>
                         <Typography
@@ -256,19 +259,6 @@ const PreferencesPage = () => {
                     control={
                       <Checkbox
                         checked={
-                          attributes.hasOwnProperty('mapGeofences') ? attributes.mapGeofences : true
-                        }
-                        onChange={(e) =>
-                          setAttributes({ ...attributes, mapGeofences: e.target.checked })
-                        }
-                      />
-                    }
-                    label={t('attributeShowGeofences')}
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={
                           attributes.hasOwnProperty('mapFollow') ? attributes.mapFollow : false
                         }
                         onChange={(e) =>
@@ -341,7 +331,7 @@ const PreferencesPage = () => {
                   onChange={(e) =>
                     setAttributes({ ...attributes, soundEvents: e.target.value.join(',') })
                   }
-                  endpoint="/api/notifications/types"
+                  endpoint="api/notifications/types"
                   keyGetter={(it) => it.type}
                   titleGetter={(it) => t(prefixString('event', it.type))}
                   label={t('eventsSoundEvents')}

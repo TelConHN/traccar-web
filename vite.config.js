@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 export default defineConfig(() => ({
+  base: './',
   server: {
     port: 3000,
     proxy: {
@@ -19,18 +20,20 @@ export default defineConfig(() => ({
   },
   build: {
     outDir: 'build',
+    chunkSizeWarningLimit: 1100,
   },
   plugins: [
     svgr(),
     react(),
     VitePWA({
+      injectRegister: false,
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       workbox: {
         // /seguir/: la página pública del bus. Siempre se pide al servidor, nunca la copia guardada
         // de la app: quien abre el enlace suele usar también la app GPS en ese navegador, y con una
         // versión vieja guardada (que no conoce esta ruta) la página salía en blanco hasta aceptar
         // la actualización.
-        navigateFallbackDenylist: [/^\/api/, /^\/seguir\//],
+        navigateFallbackDenylist: [/\/api(\/|$)/, /^\/seguir\//],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,woff,woff2,mp3}'],
       },

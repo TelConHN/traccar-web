@@ -1,21 +1,25 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { googleProtocol } from 'maplibre-google-maps';
-import { useRef, useLayoutEffect, useEffect, useState, useMemo } from 'react';
+import { Protocol } from 'pmtiles';
+import { useRef, useLayoutEffect, useEffect, useState, useMemo, useReducer } from 'react';
 import { useTheme } from '@mui/material';
-import { SwitcherControl } from '../switcher/switcher';
+import MapSwitcher from '../control/MapSwitcher';
 import { useAttributePreference, usePreference } from '../../common/util/preferences';
-import usePersistedState, { savePersistedState } from '../../common/util/usePersistedState';
+import usePersistedState from '../../common/util/usePersistedState';
 import { mapImages } from './preloadImages';
 import useMapStyles from './useMapStyles';
-import { useEffectAsync } from '../../reactHelper';
+import { useAsyncTask } from '../../reactHelper';
 
 const element = document.createElement('div');
 element.style.width = '100%';
 element.style.height = '100%';
 element.style.boxSizing = 'initial';
 
+maplibregl.setWorkerUrl(maplibreWorkerUrl);
 maplibregl.addProtocol('google', googleProtocol);
+maplibregl.addProtocol('pmtiles', new Protocol().tile);
 
 export const map = new maplibregl.Map({
   container: element,
@@ -49,17 +53,30 @@ const updateReadyValue = (value) => {
   readyListeners.forEach((listener) => listener(value));
 };
 
-// El selector de estilos del MapView montado, para recargar el estilo al recuperar el contexto.
-let switcherMontado = null;
+export const useMapReady = () => {
+  const [mapReady, setMapReady] = useState(false);
+
+  useEffect(() => {
+    const listener = (value) => setMapReady(value);
+    addReadyListener(listener);
+    return () => {
+      removeReadyListener(listener);
+    };
+  }, []);
+
+  return mapReady;
+};
+
+// Recarga del estilo del MapView montado, para usarla al recuperar el contexto WebGL.
+let recargarEstiloMontado = null;
 
 // Sin contexto, las capas propias (vehículos, geocercas…) se desmontan como al cambiar de estilo.
 // Al recuperarlo, MapLibre restaura una copia del estilo de antes, con las capas que había en ese
 // momento: se carga el estilo elegido desde cero para que no queden capas huérfanas (vehículos
 // repetidos) y las capas se vuelven a dibujar. Si el mapa no está a la vista, lo hace el próximo
-// MapView al montarse (su selector carga el estilo de nuevo).
+// MapView al montarse (aplica el estilo al montarse).
 map.on('webglcontextlost', () => updateReadyValue(false));
-map.on('webglcontextrestored', () => switcherMontado?.reload());
-
+map.on('webglcontextrestored', () => recargarEstiloMontado?.());
 const initMap = async () => {
   if (ready) return;
   if (!map.hasImage('background')) {
@@ -76,45 +93,35 @@ const MapView = ({ children }) => {
 
   const containerRef = useRef(null);
 
-  const [mapReady, setMapReady] = useState(false);
+  const mapReady = useMapReady();
 
   const mapStyles = useMapStyles();
   const activeMapStyles = useAttributePreference(
     'activeMapStyles',
-    'locationIqStreets,locationIqDark,openFreeMap',
+    'openFreeMap,locationIqStreets,locationIqDark',
   );
-  const [defaultMapStyle] = usePersistedState(
+  const [selectedStyleId, setSelectedStyleId] = usePersistedState(
     'selectedMapStyle',
-    usePreference('map', 'locationIqStreets'),
+    usePreference('map', 'openFreeMap'),
   );
-  const mapboxAccessToken = useAttributePreference('mapboxAccessToken');
   const maxZoom = useAttributePreference('web.maxZoom');
+  const [recargaEstilo, recargarEstilo] = useReducer((n) => n + 1, 0);
 
-  const switcher = useMemo(
-    () =>
-      new SwitcherControl(
-        () => updateReadyValue(false),
-        (styleId) => savePersistedState('selectedMapStyle', styleId),
-        () => {
-          map.once('styledata', () => {
-            const waiting = () => {
-              if (!map.loaded()) {
-                setTimeout(waiting, 33);
-              } else {
-                initMap();
-                updateReadyValue(true);
-              }
-            };
-            waiting();
-          });
-        },
-      ),
-    [],
-  );
+  useEffect(() => {
+    recargarEstiloMontado = recargarEstilo;
+    return () => {
+      if (recargarEstiloMontado === recargarEstilo) recargarEstiloMontado = null;
+    };
+  }, []);
 
-  useEffectAsync(async () => {
+  const styles = useMemo(() => {
+    const filtered = mapStyles.filter((s) => s.available && activeMapStyles.includes(s.id));
+    return filtered.length ? filtered : mapStyles.filter((s) => s.id === 'osm');
+  }, [mapStyles, activeMapStyles]);
+
+  useAsyncTask(async () => {
     if (theme.direction === 'rtl') {
-      maplibregl.setRTLTextPlugin('/mapbox-gl-rtl-text.js');
+      maplibregl.setRTLTextPlugin(new URL('mapbox-gl-rtl-text.js', document.baseURI).href);
     }
   }, [theme.direction]);
 
@@ -123,15 +130,12 @@ const MapView = ({ children }) => {
     const navigation = new maplibregl.NavigationControl();
     map.addControl(attribution, theme.direction === 'rtl' ? 'bottom-left' : 'bottom-right');
     map.addControl(navigation, theme.direction === 'rtl' ? 'top-left' : 'top-right');
-    map.addControl(switcher, theme.direction === 'rtl' ? 'top-left' : 'top-right');
-    switcherMontado = switcher;
+
     return () => {
-      if (switcherMontado === switcher) switcherMontado = null;
-      map.removeControl(switcher);
       map.removeControl(navigation);
       map.removeControl(attribution);
     };
-  }, [theme.direction, switcher]);
+  }, [theme.direction]);
 
   useEffect(() => {
     if (maxZoom) {
@@ -140,22 +144,28 @@ const MapView = ({ children }) => {
   }, [maxZoom]);
 
   useEffect(() => {
-    maplibregl.accessToken = mapboxAccessToken;
-  }, [mapboxAccessToken]);
-
-  useEffect(() => {
-    const filteredStyles = mapStyles.filter((s) => s.available && activeMapStyles.includes(s.id));
-    const styles = filteredStyles.length ? filteredStyles : mapStyles.filter((s) => s.id === 'osm');
-    switcher.updateStyles(styles, defaultMapStyle);
-  }, [mapStyles, defaultMapStyle, activeMapStyles, switcher]);
-
-  useEffect(() => {
-    const listener = (ready) => setMapReady(ready);
-    addReadyListener(listener);
-    return () => {
-      removeReadyListener(listener);
+    const style = styles.find((s) => s.id === selectedStyleId);
+    if (!style) {
+      setSelectedStyleId(styles[0].id);
+      return;
+    }
+    updateReadyValue(false);
+    map.coordinateSystem = style.coordinateSystem;
+    map.setStyle(style.style, { diff: false });
+    map.setTransformRequest(style.transformRequest);
+    let timeoutId;
+    const waiting = () => {
+      if (!map.loaded()) {
+        timeoutId = setTimeout(waiting, 33);
+      } else {
+        initMap();
+        updateReadyValue(true);
+      }
     };
-  }, []);
+    map.once('styledata', waiting);
+    return () => clearTimeout(timeoutId);
+    // recargaEstilo: vuelve a aplicar el mismo estilo al recuperar el contexto WebGL.
+  }, [styles, selectedStyleId, setSelectedStyleId, recargaEstilo]);
 
   useLayoutEffect(() => {
     const currentEl = containerRef.current;
@@ -168,6 +178,7 @@ const MapView = ({ children }) => {
 
   return (
     <div style={{ width: '100%', height: '100%' }} ref={containerRef}>
+      <MapSwitcher styles={styles} selectedId={selectedStyleId} onSelect={setSelectedStyleId} />
       {mapReady && children}
     </div>
   );

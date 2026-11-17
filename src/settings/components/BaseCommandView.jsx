@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Autocomplete, Checkbox, FormControlLabel, MenuItem, TextField } from '@mui/material';
+import { Autocomplete, Checkbox, FormControlLabel, TextField } from '@mui/material';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import { useAdministrator, useRestriction } from '../../common/util/permissions';
-import { useEffectAsync } from '../../reactHelper';
+import { useAsyncTask } from '../../reactHelper';
 import fetchOrThrow from '../../common/util/fetchOrThrow';
 import { prefixString } from '../../common/util/stringUtils';
 import useCommandAttributes from '../../common/attributes/useCommandAttributes';
@@ -32,38 +32,44 @@ const BaseCommandView = ({
   // los dos del corte de corriente, que es lo que la demo tiene que poder mostrar; al enviarlos,
   // CommandDevicePage los manda al simulador en vez de a un GPS que no existe.
   const esDemo = useSelector((state) => state.devices.items[deviceId]?.attributes?.demo === true);
-  const comandosDeDemo = esDemo
-    ? ['engineStop', 'engineResume'].map((type) => ({
-        type,
-        optionType: 'type',
-        key: `type-${type}`,
-      }))
-    : [];
 
-  useEffectAsync(async () => {
-    if (includeSaved) {
-      const savedResponse = await fetchOrThrow(`/api/commands/send?deviceId=${deviceId}`);
-      const saved = await savedResponse.json();
-      let combined = saved.map((it) => ({ ...it, optionType: 'saved', key: `saved-${it.id}` }));
-      if (!limitCommands) {
-        const typesResponse = await fetchOrThrow(
-          `/api/commands/types?${new URLSearchParams({ deviceId }).toString()}`,
-        );
+  useAsyncTask(
+    async ({ signal }) => {
+      const comandosDeDemo = esDemo
+        ? ['engineStop', 'engineResume'].map((type) => ({
+            type,
+            optionType: 'type',
+            key: `type-${type}`,
+          }))
+        : [];
+      if (includeSaved) {
+        const savedResponse = await fetchOrThrow(`api/commands/send?deviceId=${deviceId}`, {
+          signal,
+        });
+        const saved = await savedResponse.json();
+        let combined = saved.map((it) => ({ ...it, optionType: 'saved', key: `saved-${it.id}` }));
+        if (!limitCommands) {
+          const typesResponse = await fetchOrThrow(
+            `api/commands/types?${new URLSearchParams({ deviceId }).toString()}`,
+            { signal },
+          );
+          const types = await typesResponse.json();
+          combined = combined.concat(
+            types.map((it) => ({ ...it, optionType: 'type', key: `type-${it.type}` })),
+          );
+        }
+        setOptions([...combined, ...comandosDeDemo]);
+      } else {
+        const typesResponse = await fetchOrThrow('api/commands/types', { signal });
         const types = await typesResponse.json();
-        combined = combined.concat(
-          types.map((it) => ({ ...it, optionType: 'type', key: `type-${it.type}` })),
-        );
+        setOptions([
+          ...types.map((it) => ({ ...it, optionType: 'type', key: `type-${it.type}` })),
+          ...comandosDeDemo,
+        ]);
       }
-      setOptions([...combined, ...comandosDeDemo]);
-    } else {
-      const typesResponse = await fetchOrThrow('/api/commands/types');
-      const types = await typesResponse.json();
-      setOptions([
-        ...types.map((it) => ({ ...it, optionType: 'type', key: `type-${it.type}` })),
-        ...comandosDeDemo,
-      ]);
-    }
-  }, [deviceId, includeSaved, limitCommands, esDemo]);
+    },
+    [deviceId, includeSaved, limitCommands, esDemo],
+  );
 
   useEffect(() => {
     if (item && item.type) {
@@ -114,11 +120,11 @@ const BaseCommandView = ({
             : t(prefixString('command', option.type))
         }
         renderOption={(props, option) => (
-          <MenuItem key={option.key} {...props} value={option.key}>
+          <li key={option.key} {...props}>
             {option.optionType === 'saved'
               ? option.description
               : t(prefixString('command', option.type))}
-          </MenuItem>
+          </li>
         )}
         isOptionEqualToValue={(option, value) => option.key === value.key}
         value={

@@ -20,15 +20,17 @@ import { useTranslation } from '../common/components/LocalizationProvider';
 import PageLayout from '../common/components/PageLayout';
 import ReportsMenu from './components/ReportsMenu';
 import ColumnSelect from './components/ColumnSelect';
+import ResizeHandle from './components/ResizeHandle';
 import usePersistedState from '../common/util/usePersistedState';
-import { useCatch } from '../reactHelper';
+import { useCatch, useCatchCallback } from '../reactHelper';
 import useReportStyles from './common/useReportStyles';
-import MapPositions from '../map/MapPositions';
+import MapMarkers from '../map/MapMarkers';
 import MapView from '../map/core/MapView';
 import MapCamera from '../map/MapCamera';
 import AddressValue from '../common/components/AddressValue';
 import TableShimmer from '../common/components/TableShimmer';
 import MapGeofence from '../map/MapGeofence';
+import { mapIconKey } from '../map/core/preloadImages';
 import scheduleReport from './common/scheduleReport';
 import MapScale from '../map/MapScale';
 import fetchOrThrow from '../common/util/fetchOrThrow';
@@ -69,20 +71,20 @@ const StopReportPage = () => {
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const onShow = useCatch(async ({ deviceIds, groupIds, from, to }) => {
+  const onShow = useCatchCallback(async ({ deviceIds, groupIds, from, to }) => {
     const query = new URLSearchParams({ from, to });
     deviceIds.forEach((deviceId) => query.append('deviceId', deviceId));
     groupIds.forEach((groupId) => query.append('groupId', groupId));
     setLoading(true);
     try {
-      const response = await fetchOrThrow(`/api/reports/stops?${query.toString()}`, {
+      const response = await fetchOrThrow(`api/reports/stops?${query.toString()}`, {
         headers: { Accept: 'application/json' },
       });
       setItems(await response.json());
     } finally {
       setLoading(false);
     }
-  });
+  }, []);
 
   const onExport = useCatch(async () => {
     const sheets = new Map();
@@ -143,28 +145,28 @@ const StopReportPage = () => {
     }
   };
 
+  const selectedMarker = selectedItem && {
+    latitude: selectedItem.latitude,
+    longitude: selectedItem.longitude,
+    image: `${mapIconKey(devices[selectedItem.deviceId]?.category)}-neutral`,
+    title: formatTime(selectedItem.startTime, 'seconds'),
+  };
+
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportStops']}>
       <div className={classes.container}>
         {selectedItem && (
-          <div className={classes.containerMap}>
-            <MapView>
-              <MapGeofence />
-              <MapPositions
-                positions={[
-                  {
-                    deviceId: selectedItem.deviceId,
-                    fixTime: selectedItem.startTime,
-                    latitude: selectedItem.latitude,
-                    longitude: selectedItem.longitude,
-                  },
-                ]}
-                titleField="fixTime"
-              />
-            </MapView>
-            <MapScale />
-            <MapCamera latitude={selectedItem.latitude} longitude={selectedItem.longitude} />
-          </div>
+          <>
+            <div className={classes.containerMap}>
+              <MapView>
+                <MapGeofence />
+                <MapMarkers markers={[selectedMarker]} showTitles />
+              </MapView>
+              <MapScale />
+              <MapCamera latitude={selectedItem.latitude} longitude={selectedItem.longitude} />
+            </div>
+            <ResizeHandle />
+          </>
         )}
         <div className={classes.containerMain}>
           <div className={classes.header}>
@@ -174,6 +176,7 @@ const StopReportPage = () => {
               onSchedule={onSchedule}
               deviceType="multiple"
               loading={loading}
+              formats={['xlsx']}
             >
               <ColumnSelect columns={columns} setColumns={setColumns} columnsArray={columnsArray} />
             </ReportFilter>

@@ -3,13 +3,13 @@ import { useMemo } from 'react';
 export default (t) =>
   useMemo(
     () => ({
+      darkMode: {
+        name: t('settingsDarkMode'),
+        type: 'boolean',
+      },
       language: {
         name: t('loginLanguage'),
         type: 'string',
-      },
-      mapGeofences: {
-        name: t('attributeShowGeofences'),
-        type: 'boolean',
       },
       mapLiveRoutes: {
         name: t('mapLiveRoutes'),
@@ -79,6 +79,10 @@ export default (t) =>
         name: t('mapOpenWeatherKey'),
         type: 'string',
       },
+      ordnanceSurveyKey: {
+        name: t('mapOrdnanceSurveyKey'),
+        type: 'string',
+      },
       tomTomKey: {
         name: t('mapTomTomKey'),
         type: 'string',
@@ -90,6 +94,18 @@ export default (t) =>
       notificationTokens: {
         name: t('attributeNotificationTokens'),
         type: 'string',
+      },
+      'ui.disableStatusCard': {
+        name: t('attributeUiDisableStatusCard'),
+        type: 'boolean',
+      },
+      'ui.disableDeviceList': {
+        name: t('attributeUiDisableDeviceList'),
+        type: 'boolean',
+      },
+      'ui.disableTabs': {
+        name: t('attributeUiDisableTabs'),
+        type: 'boolean',
       },
       'ui.disableSavedCommands': {
         name: t('attributeUiDisableSavedCommands'),

@@ -27,12 +27,19 @@ const useStyles = makeStyles()((theme, { miniVariant, anchoMenu }) => ({
     },
   },
   desktopDrawer: {
-    width: miniVariant
-      ? `calc(${theme.spacing(8)} + 1px)`
-      : (anchoMenu ?? theme.dimensions.drawerWidthDesktop),
+    width: miniVariant ? theme.spacing(7) : (anchoMenu ?? theme.dimensions.drawerWidthDesktop),
+    overflowX: 'hidden',
     transition: theme.transitions.create('width', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.enteringScreen,
+    }),
+    ...(miniVariant && {
+      '& .MuiListItemButton-root': {
+        minHeight: 48,
+      },
+      '& .MuiListItemText-root': {
+        display: 'none',
+      },
     }),
     '@media print': {
       display: 'none',
@@ -111,7 +118,7 @@ const PageLayout = ({ menu, breadcrumbs, breadcrumbsMovil, anchoMenu, children }
         <Drawer
           variant="permanent"
           className={classes.desktopDrawer}
-          classes={{ paper: classes.desktopDrawer }}
+          slotProps={{ paper: { className: classes.desktopDrawer } }}
         >
           <Toolbar>
             {!miniVariant && (
@@ -148,7 +155,7 @@ const PageLayout = ({ menu, breadcrumbs, breadcrumbsMovil, anchoMenu, children }
           variant="temporary"
           open={openDrawer}
           onClose={() => setOpenDrawer(false)}
-          classes={{ paper: classes.mobileDrawer }}
+          slotProps={{ paper: { className: classes.mobileDrawer } }}
         >
           {menu}
         </Drawer>

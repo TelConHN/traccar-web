@@ -294,7 +294,7 @@ const Turnos = ({ perfil }) => {
                     )}
                   </Stack>
                 }
-                secondaryTypographyProps={{ component: 'div' }}
+                slotProps={{ secondary: { component: 'div' } }}
               />
             </ListItem>
           ))}

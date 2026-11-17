@@ -11,7 +11,7 @@
 // línea mete el punto entre los dos que corresponde, no al final: así se corrige un pedazo sin
 // rehacer todo.
 import { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import {
   Alert,
   Box,

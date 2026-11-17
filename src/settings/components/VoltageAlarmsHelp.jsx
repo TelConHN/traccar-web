@@ -65,20 +65,22 @@ const VoltageAlarmsHelp = () => {
           helperText={
             (!valid && `Entre ${MIN_THRESHOLD} y ${MAX_THRESHOLD} V`) || (done && 'Guardado')
           }
-          inputProps={{ inputMode: 'decimal' }}
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <Button
-                  size="small"
-                  onClick={handleSave}
-                  disabled={!valid || parsed === saved}
-                  sx={{ mr: -1 }}
-                >
-                  {t('sharedSave')}
-                </Button>
-              </InputAdornment>
-            ),
+          slotProps={{
+            htmlInput: { inputMode: 'decimal' },
+            input: {
+              endAdornment: (
+                <InputAdornment position="end">
+                  <Button
+                    size="small"
+                    onClick={handleSave}
+                    disabled={!valid || parsed === saved}
+                    sx={{ mr: -1 }}
+                  >
+                    {t('sharedSave')}
+                  </Button>
+                </InputAdornment>
+              ),
+            },
           }}
           sx={{ my: 1.5 }}
         />

@@ -29,7 +29,7 @@ const GeofencesList = ({ onGeofenceSelected, refresh, visibleIds, onRemove, seco
   const items = useSelector((state) => state.geofences.items);
 
   const defaultRefresh = useCatchCallback(async () => {
-    const response = await fetchOrThrow('/api/geofences');
+    const response = await fetchOrThrow('api/geofences');
     dispatch(geofencesActions.refresh(await response.json()));
   }, [dispatch]);
   const refreshGeofences = refresh || defaultRefresh;
@@ -48,7 +48,7 @@ const GeofencesList = ({ onGeofenceSelected, refresh, visibleIds, onRemove, seco
               itemId={item.id}
               editPath="/settings/geofence"
               endpoint="geofences"
-              setTimestamp={refreshGeofences}
+              onReload={refreshGeofences}
               onRemove={onRemove}
             />
           </ListItemButton>

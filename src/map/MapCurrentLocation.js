@@ -1,4 +1,4 @@
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import { useEffect } from 'react';
 import { map } from './core/MapView';
 import { useTheme } from '@mui/material';
@@ -16,7 +16,7 @@ const MapCurrentLocation = () => {
     });
     map.addControl(control, theme.direction === 'rtl' ? 'top-left' : 'top-right');
     return () => map.removeControl(control);
-  }, []);
+  }, [theme.direction]);
 
   return null;
 };

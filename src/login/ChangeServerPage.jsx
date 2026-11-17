@@ -16,9 +16,9 @@ import { useNavigate } from 'react-router-dom';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import Loader from '../common/components/Loader';
-import { errorsActions } from '../store';
+import { messagesActions } from '../store';
 
-const currentServer = `${window.location.protocol}//${window.location.host}`;
+const currentServer = document.baseURI;
 
 const officialServers = [
   currentServer,
@@ -82,13 +82,14 @@ const ChangeServerPage = () => {
   };
 
   const handleSubmit = (url) => {
+    const normalized = new URL(url).toString();
     setLoading(true);
     if (window.webkit && window.webkit.messageHandlers.appInterface) {
-      window.webkit.messageHandlers.appInterface.postMessage(`server|${url}`);
+      window.webkit.messageHandlers.appInterface.postMessage(`server|${normalized}`);
     } else if (window.appInterface) {
-      window.appInterface.postMessage(`server|${url}`);
+      window.appInterface.postMessage(`server|${normalized}`);
     } else {
-      window.location.replace(url);
+      window.location.replace(normalized);
     }
   };
 
@@ -156,7 +157,7 @@ const ChangeServerPage = () => {
           <Scanner
             constraints={{ facingMode: 'environment' }}
             onScan={handleScanResult}
-            onError={(error) => dispatch(errorsActions.push(String(error)))}
+            onError={(error) => dispatch(messagesActions.push(String(error)))}
             className={classes.scannerVideo}
           />
         </DialogContent>

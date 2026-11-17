@@ -26,19 +26,15 @@ export default (t) =>
       colorPrimary: {
         name: t('serverColorPrimary'),
         type: 'string',
-        subtype: 'color',
+        dataType: 'color',
       },
       colorSecondary: {
         name: t('serverColorSecondary'),
         type: 'string',
-        subtype: 'color',
+        dataType: 'color',
       },
       disableChange: {
         name: t('serverChangeDisable'),
-        type: 'boolean',
-      },
-      darkMode: {
-        name: t('settingsDarkMode'),
         type: 'boolean',
       },
       termsUrl: {

@@ -45,6 +45,11 @@ export default (
         (device) =>
           !users.length || (owners[device.id] || []).some((owner) => users.includes(owner.id)),
       )
+      .filter(
+        (device) =>
+          !filter.geofences.length ||
+          (positions[device.id]?.geofenceIds || []).some((id) => filter.geofences.includes(id)),
+      )
       .filter((device) => {
         const lowerCaseKeyword = keyword.toLowerCase();
         const ownerFields = (owners[device.id] || []).flatMap((owner) => [owner.name, owner.email]);

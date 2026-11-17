@@ -366,8 +366,10 @@ const SpeedLimitPage = () => {
     <TextField
       size="small"
       type="number"
-      inputProps={{ min: 0, max: 150, step: 1 }}
-      InputProps={{ endAdornment: <InputAdornment position="end">km/h</InputAdornment> }}
+      slotProps={{
+        htmlInput: { min: 0, max: 150, step: 1 },
+        input: { endAdornment: <InputAdornment position="end">km/h</InputAdornment> },
+      }}
       value={speedInputs[device.id] ?? ''}
       onChange={(e) => {
         const val = e.target.value;

@@ -1,9 +1,9 @@
-import { useTheme } from '@mui/material/styles';
-import { useId, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { map } from './core/MapView';
+import useMapLayer from './core/useMapLayer';
 import getSpeedColor from '../common/util/colors';
 import { useAttributePreference } from '../common/util/preferences';
+import { toMapCoordinates } from './core/mapUtil';
 
 // Niveles de color con que se pinta la ruta. La velocidad se cuantiza a estos
 // niveles y TODOS los segmentos de un mismo nivel viajan juntos en un solo
@@ -19,10 +19,6 @@ import { useAttributePreference } from '../common/util/preferences';
 const SPEED_BANDS = 120;
 
 const MapRoutePath = ({ positions }) => {
-  const id = useId();
-
-  const theme = useTheme();
-
   const reportColor = useSelector((state) => {
     const position = positions?.find(() => true);
     if (position) {
@@ -40,43 +36,8 @@ const MapRoutePath = ({ positions }) => {
   const mapLineWidth = useAttributePreference('mapLineWidth', 2);
   const mapLineOpacity = useAttributePreference('mapLineOpacity', 1);
 
-  useEffect(() => {
-    map.addSource(id, {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        geometry: {
-          type: 'LineString',
-          coordinates: [],
-        },
-      },
-    });
-    map.addLayer({
-      source: id,
-      id: `${id}-line`,
-      type: 'line',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round',
-      },
-      paint: {
-        'line-color': ['get', 'color'],
-        'line-width': ['get', 'width'],
-        'line-opacity': ['get', 'opacity'],
-      },
-    });
-
-    return () => {
-      if (map.getLayer(`${id}-line`)) {
-        map.removeLayer(`${id}-line`);
-      }
-      if (map.getSource(id)) {
-        map.removeSource(id);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
+  // Solo se recalcula cuando cambian las posiciones o el estilo, no en cada render.
+  const features = useMemo(() => {
     const minSpeed = positions.map((p) => p.speed).reduce((a, b) => Math.min(a, b), Infinity);
     const maxSpeed = positions.map((p) => p.speed).reduce((a, b) => Math.max(a, b), -Infinity);
     // Agrupa los segmentos por nivel de color (ver SPEED_BANDS arriba).
@@ -84,9 +45,8 @@ const MapRoutePath = ({ positions }) => {
     for (let i = 0; i < positions.length - 1; i += 1) {
       // Sin variación de velocidad la normalización dividiría entre cero y el
       // color saldría NaN (color CSS inválido), así que cae al extremo frío.
-      const normalized = maxSpeed > minSpeed
-        ? (positions[i + 1].speed - minSpeed) / (maxSpeed - minSpeed)
-        : 0;
+      const normalized =
+        maxSpeed > minSpeed ? (positions[i + 1].speed - minSpeed) / (maxSpeed - minSpeed) : 0;
       const band = Math.round(normalized * (SPEED_BANDS - 1));
       let segments = segmentsByBand.get(band);
       if (!segments) {
@@ -94,14 +54,14 @@ const MapRoutePath = ({ positions }) => {
         segmentsByBand.set(band, segments);
       }
       segments.push([
-        [positions[i].longitude, positions[i].latitude],
-        [positions[i + 1].longitude, positions[i + 1].latitude],
+        toMapCoordinates(positions[i].longitude, positions[i].latitude),
+        toMapCoordinates(positions[i + 1].longitude, positions[i + 1].latitude),
       ]);
     }
 
-    const features = [];
+    const result = [];
     segmentsByBand.forEach((segments, band) => {
-      features.push({
+      result.push({
         type: 'Feature',
         geometry: {
           type: 'MultiLineString',
@@ -116,12 +76,31 @@ const MapRoutePath = ({ positions }) => {
         },
       });
     });
+    return result;
+  }, [positions, reportColor, mapLineWidth, mapLineOpacity]);
 
-    map.getSource(id)?.setData({
+  useMapLayer({
+    layers: [
+      {
+        type: 'line',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': ['get', 'width'],
+          'line-opacity': ['get', 'opacity'],
+        },
+      },
+    ],
+    layersDeps: [],
+    data: {
       type: 'FeatureCollection',
       features,
-    });
-  }, [theme, positions, reportColor, mapLineWidth, mapLineOpacity]);
+    },
+    dataDeps: [features],
+  });
 
   return null;
 };

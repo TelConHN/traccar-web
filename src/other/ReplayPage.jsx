@@ -12,11 +12,11 @@ import { useSelector } from 'react-redux';
 import MapView from '../map/core/MapView';
 import MapRoutePath from '../map/MapRoutePath';
 import MapRoutePoints from '../map/MapRoutePoints';
-import MapPositions from '../map/MapPositions';
+import MapPositionMarkers from '../map/MapPositionMarkers';
 import { formatTime } from '../common/util/formatter';
-import ReportFilter, { updateReportParams } from '../reports/components/ReportFilter';
+import ReportFilter from '../reports/components/ReportFilter';
 import { useTranslation } from '../common/components/LocalizationProvider';
-import { useCatch } from '../reactHelper';
+import { useCatchCallback } from '../reactHelper';
 import MapCamera from '../map/MapCamera';
 import MapGeofence from '../map/MapGeofence';
 import StatusCard from '../common/components/StatusCard';
@@ -90,7 +90,7 @@ const ReplayPage = () => {
   const navigate = useNavigate();
   const timerRef = useRef();
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const defaultDeviceId = useSelector((state) => state.devices.selectedId);
 
@@ -102,6 +102,7 @@ const ReplayPage = () => {
   const to = searchParams.get('to');
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const loaded = Boolean(from && to && !loading && positions.length);
 
@@ -154,33 +155,37 @@ const ReplayPage = () => {
     [setShowCard],
   );
 
-  const onShow = useCatch(async ({ deviceIds, from, to }) => {
-    const deviceId = deviceIds.find(() => true);
-    setLoading(true);
-    setSelectedDeviceId(deviceId);
-    const query = new URLSearchParams({ deviceId, from, to });
-    try {
-      const response = await fetchOrThrow(`/api/positions?${query.toString()}`);
-      setIndex(0);
-      // Descarta fixes en "null island" (lat 0, lon 0): un solo punto así dibuja
-      // una recta desde la ruta real hasta el Golfo de Guinea y obliga a la
-      // cámara a alejarse para que quepa. Se filtra aquí, una vez, para que
-      // ningún hijo (línea, puntos, cámara) lo vea.
-      const positions = (await response.json()).filter(
-        (position) => position.latitude !== 0 || position.longitude !== 0,
-      );
-      setPositions(positions);
-      if (!positions.length) {
-        throw Error(t('sharedNoData'));
+  const onShow = useCatchCallback(
+    async ({ deviceIds, from, to }) => {
+      const deviceId = deviceIds.find(() => true);
+      setLoading(true);
+      setSelectedDeviceId(deviceId);
+      const query = new URLSearchParams({ deviceId, from, to });
+      try {
+        const response = await fetchOrThrow(`api/positions?${query.toString()}`);
+        setIndex(0);
+        // Descarta fixes en "null island" (lat 0, lon 0): un solo punto así dibuja
+        // una recta desde la ruta real hasta el Golfo de Guinea y obliga a la
+        // cámara a alejarse para que quepa. Se filtra aquí, una vez, para que
+        // ningún hijo (línea, puntos, cámara) lo vea.
+        const positions = (await response.json()).filter(
+          (position) => position.latitude !== 0 || position.longitude !== 0,
+        );
+        setPositions(positions);
+        if (!positions.length) {
+          throw Error(t('sharedNoData'));
+        }
+        setFilterOpen(false);
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  });
+    },
+    [t],
+  );
 
   const handleDownload = () => {
     const query = new URLSearchParams({ deviceId: selectedDeviceId, from, to });
-    window.location.assign(`/api/positions/kml?${query.toString()}`);
+    window.location.assign(`api/positions/kml?${query.toString()}`);
   };
 
   return (
@@ -191,7 +196,7 @@ const ReplayPage = () => {
         <MapRoutePath positions={positions} />
         <MapRoutePoints positions={positions} onClick={onPointClick} showSpeedControl />
         {index < positions.length && (
-          <MapPositions
+          <MapPositionMarkers
             positions={[positions[index]]}
             onMarkerClick={onMarkerClick}
             titleField="fixTime"
@@ -214,10 +219,7 @@ const ReplayPage = () => {
                 <IconButton onClick={handleDownload}>
                   <DownloadIcon />
                 </IconButton>
-                <IconButton
-                  edge="end"
-                  onClick={() => updateReportParams(searchParams, setSearchParams, 'ignore', [])}
-                >
+                <IconButton edge="end" onClick={() => setFilterOpen((open) => !open)}>
                   <TuneIcon />
                 </IconButton>
               </>
@@ -225,7 +227,7 @@ const ReplayPage = () => {
           </Toolbar>
         </Paper>
         <Paper className={classes.content} square>
-          {loaded && (
+          {loaded && !filterOpen && (
             <>
               <Typography variant="subtitle1" align="center">
                 {deviceName}
@@ -234,14 +236,16 @@ const ReplayPage = () => {
                 className={classes.slider}
                 max={positions.length - 1}
                 step={1}
-                marks={positions.length <= MAX_SLIDER_MARKS
-                  ? positions.map((_, index) => ({ value: index }))
-                  : false}
+                marks={
+                  positions.length <= MAX_SLIDER_MARKS
+                    ? positions.map((_, index) => ({ value: index }))
+                    : false
+                }
                 value={index}
                 onChange={(_, index) => setIndex(index)}
               />
               <div className={classes.controls}>
-                {`${index + 1}/${positions.length}`}
+                <Typography variant="caption">{`${index + 1}/${positions.length}`}</Typography>
                 <IconButton
                   onClick={() => setIndex((index) => index - 1)}
                   disabled={playing || index <= 0}
@@ -260,11 +264,13 @@ const ReplayPage = () => {
                 >
                   <FastForwardIcon />
                 </IconButton>
-                {formatTime(positions[index].fixTime, 'seconds')}
+                <Typography variant="caption">
+                  {formatTime(positions[index].fixTime, 'seconds')}
+                </Typography>
               </div>
             </>
           )}
-          <div style={{ display: loaded ? 'none' : 'block' }}>
+          <div style={{ display: loaded && !filterOpen ? 'none' : 'block' }}>
             <ReportFilter onShow={onShow} deviceType="single" loading={loading} />
           </div>
         </Paper>

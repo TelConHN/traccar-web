@@ -19,7 +19,7 @@ const CollectionActions = ({
   itemId,
   editPath,
   endpoint,
-  setTimestamp,
+  onReload,
   customActions,
   readonly,
   onRemove,
@@ -57,7 +57,7 @@ const CollectionActions = ({
   const handleRemoveResult = (removed) => {
     setRemoving(false);
     if (removed) {
-      setTimestamp(Date.now());
+      onReload();
     }
   };
 

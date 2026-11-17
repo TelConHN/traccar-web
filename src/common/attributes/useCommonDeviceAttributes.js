@@ -6,7 +6,22 @@ export default (t) =>
       speedLimit: {
         name: t('attributeSpeedLimit'),
         type: 'number',
-        subtype: 'speed',
+        dataType: 'speed',
+      },
+      proximityEnterDistance: {
+        name: t('attributeProximityEnterDistance'),
+        type: 'number',
+        dataType: 'distance',
+      },
+      proximityExitDistance: {
+        name: t('attributeProximityExitDistance'),
+        type: 'number',
+        dataType: 'distance',
+      },
+      unaccompaniedDistance: {
+        name: t('attributeUnaccompaniedDistance'),
+        type: 'number',
+        dataType: 'distance',
       },
       fuelDropThreshold: {
         name: t('attributeFuelDropThreshold'),
@@ -34,6 +49,78 @@ export default (t) =>
       },
       notificationTokens: {
         name: t('attributeNotificationTokens'),
+        type: 'string',
+      },
+      'filter.calendar': {
+        name: t('attributeFilterCalendar'),
+        type: 'boolean',
+      },
+      'filter.invalid': {
+        name: t('attributeFilterInvalid'),
+        type: 'boolean',
+      },
+      'filter.zero': {
+        name: t('attributeFilterZero'),
+        type: 'boolean',
+      },
+      'filter.duplicate': {
+        name: t('attributeFilterDuplicate'),
+        type: 'boolean',
+      },
+      'filter.outdated': {
+        name: t('attributeFilterOutdated'),
+        type: 'boolean',
+      },
+      'filter.future': {
+        name: t('attributeFilterFuture'),
+        type: 'number',
+      },
+      'filter.past': {
+        name: t('attributeFilterPast'),
+        type: 'number',
+      },
+      'filter.accuracy': {
+        name: t('attributeFilterAccuracy'),
+        type: 'number',
+      },
+      'filter.approximate': {
+        name: t('attributeFilterApproximate'),
+        type: 'boolean',
+      },
+      'filter.static': {
+        name: t('attributeFilterStatic'),
+        type: 'boolean',
+      },
+      'filter.distance': {
+        name: t('attributeFilterDistance'),
+        type: 'number',
+      },
+      'filter.maxSpeed': {
+        name: t('attributeFilterMaxSpeed'),
+        type: 'number',
+      },
+      'filter.minPeriod': {
+        name: t('attributeFilterMinPeriod'),
+        type: 'number',
+      },
+      'filter.dailyLimit': {
+        name: t('attributeFilterDailyLimit'),
+        type: 'number',
+      },
+      'filter.dailyLimitInterval': {
+        name: t('attributeFilterDailyLimitInterval'),
+        type: 'number',
+      },
+      'filter.skipLimit': {
+        name: t('attributeFilterSkipLimit'),
+        type: 'number',
+      },
+      'filter.skipAttributes': {
+        name: t('attributeFilterSkipAttributes'),
+        type: 'string',
+      },
+      'time.override': {
+        name: t('attributeTimeOverride'),
         type: 'string',
       },
     }),

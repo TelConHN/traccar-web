@@ -5,7 +5,7 @@
 // Antes era un dibujo fijo debajo de un diálogo que tapaba el mapa, y si el toque caía en la casa
 // de al lado la única salida era cancelar y empezar de nuevo.
 import { useEffect, useId, useRef } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import turfCircle from '@turf/circle';
 import { useTheme } from '@mui/material/styles';
 import { map } from '../map/core/MapView';

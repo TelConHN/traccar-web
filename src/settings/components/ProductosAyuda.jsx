@@ -17,7 +17,7 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutlineOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import BluetoothIcon from '@mui/icons-material/Bluetooth';

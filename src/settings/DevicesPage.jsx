@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useReducer, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -15,11 +15,11 @@ import {
 } from '@mui/material';
 import LinkIcon from '@mui/icons-material/Link';
 import { useTheme } from '@mui/material/styles';
-import { useEffectAsync, useScrollToLoad, pageSize } from '../reactHelper';
+import { useAsyncTask, useScrollToLoad } from '../reactHelper';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import PageLayout from '../common/components/PageLayout';
 import SettingsMenu from './components/SettingsMenu';
-import CollectionFab from './components/CollectionFab';
+import AddFab from './components/AddFab';
 import CollectionActions from './components/CollectionActions';
 import TableShimmer from '../common/components/TableShimmer';
 import SearchHeader from './components/SearchHeader';
@@ -47,37 +47,41 @@ const DevicesPage = () => {
 
   const positions = useSelector((state) => state.session.positions);
 
-  const [timestamp, setTimestamp] = useState(Date.now());
+  const [reloadKey, reload] = useReducer((k) => k + 1, 0);
   const [items, setItems] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showAll, setShowAll] = usePersistedState('showAllDevices', false);
   // Deshabilitado = vehículo dado de baja o servicio terminado en el panel admin. Se guarda por
   // su recorrido, pero por defecto no se mezcla con los que trabajan.
   const [showArchived, setShowArchived] = usePersistedState('showArchivedDevices', false);
-  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
-  const loadItems = async (offset) => {
-    setLoading(true);
-    try {
+  const loadItems = useCallback(
+    async (offset, signal) => {
       const query = new URLSearchParams({ all: showAll });
       if (searchKeyword) {
         query.append('keyword', searchKeyword);
       }
-      const response = await fetchOrThrow(`/api/devices?${query.toString()}`);
+      const response = await fetchOrThrow(`api/devices?${query.toString()}`, { signal });
       const data = await response.json();
+      // Se traen todos de una vez (sin páginas): el filtro de archivados y la búsqueda
+      // trabajan sobre la lista completa.
       setItems(data);
       setHasMore(false);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [searchKeyword, showAll],
+  );
 
-  const { sentinelRef, hasMore, setHasMore } = useScrollToLoad(() => loadItems(items.length));
+  const sentinelRef = useScrollToLoad(() => loadItems(items.length));
 
-  useEffectAsync(async () => {
-    setItems([]);
-    await loadItems(0);
-  }, [timestamp, showAll, searchKeyword]);
+  useAsyncTask(
+    async ({ signal }) => {
+      void reloadKey;
+      setItems([]);
+      await loadItems(0, signal);
+    },
+    [reloadKey, loadItems],
+  );
 
   const visibleItems = showArchived ? items : items.filter((item) => !item.disabled);
 
@@ -131,9 +135,7 @@ const DevicesPage = () => {
             <TableRow key={item.id}>
               <TableCell>
                 {item.name}
-                {item.disabled && (
-                  <Chip label={t('deviceArchived')} size="small" sx={{ ml: 1 }} />
-                )}
+                {item.disabled && <Chip label={t('deviceArchived')} size="small" sx={{ ml: 1 }} />}
               </TableCell>
               <TableCell>{item.uniqueId}</TableCell>
               <TableCell>{item.groupId ? groups[item.groupId]?.name : null}</TableCell>
@@ -160,14 +162,20 @@ const DevicesPage = () => {
                   itemId={item.id}
                   editPath="/settings/device"
                   endpoint="devices"
-                  setTimestamp={setTimestamp}
+                  onReload={reload}
                   customActions={[actionConnections]}
                   readonly={deviceReadonly}
                 />
               </TableCell>
             </TableRow>
           ))}
-          {loading && <TableShimmer columns={manager ? 9 : 8} endAction />}
+          {hasMore && (
+            <TableShimmer
+              ref={items.length > 0 ? sentinelRef : null}
+              columns={manager ? 9 : 8}
+              endAction
+            />
+          )}
         </TableBody>
         <TableFooter>
           <TableRow>
@@ -204,8 +212,7 @@ const DevicesPage = () => {
           </TableRow>
         </TableFooter>
       </Table>
-      {hasMore && <div ref={sentinelRef} />}
-      <CollectionFab editPath="/settings/device" />
+      <AddFab editPath="/settings/device" />
     </PageLayout>
   );
 };

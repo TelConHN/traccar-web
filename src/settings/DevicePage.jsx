@@ -11,26 +11,26 @@ import {
   Button,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { MuiFileInput } from 'mui-file-input';
+import FileInput from '../common/components/FileInput';
 import EditItemView from './components/EditItemView';
 import EditAttributesAccordion from './components/EditAttributesAccordion';
 import SelectField from '../common/components/SelectField';
 import deviceCategories from '../common/util/deviceCategories';
 import { useTranslation } from '../common/components/LocalizationProvider';
 import useDeviceAttributes from '../common/attributes/useDeviceAttributes';
-import { useAdministrator } from '../common/util/permissions';
+import { useManager } from '../common/util/permissions';
 import SettingsMenu from './components/SettingsMenu';
 import useCommonDeviceAttributes from '../common/attributes/useCommonDeviceAttributes';
 import { useCatch } from '../reactHelper';
 import useSettingsStyles from './common/useSettingsStyles';
-import QrCodeDialog from '../common/components/QrCodeDialog';
+import ServerQrCodeDialog from '../common/components/ServerQrCodeDialog';
 import fetchOrThrow from '../common/util/fetchOrThrow';
 
 const DevicePage = () => {
   const { classes } = useSettingsStyles();
   const t = useTranslation();
 
-  const admin = useAdministrator();
+  const manager = useManager();
 
   const commonDeviceAttributes = useCommonDeviceAttributes(t);
   const deviceAttributes = useDeviceAttributes(t);
@@ -45,7 +45,7 @@ const DevicePage = () => {
   const handleFileInput = useCatch(async (newFile) => {
     setImageFile(newFile);
     if (newFile && item?.id) {
-      const response = await fetchOrThrow(`/api/devices/${item.id}/image`, {
+      const response = await fetchOrThrow(`api/devices/${item.id}/image`, {
         method: 'POST',
         body: newFile,
       });
@@ -97,7 +97,7 @@ const DevicePage = () => {
               <SelectField
                 value={item.groupId}
                 onChange={(event) => setItem({ ...item, groupId: Number(event.target.value) })}
-                endpoint="/api/groups"
+                endpoint="api/groups"
                 label={t('groupParent')}
               />
               <TextField
@@ -129,7 +129,7 @@ const DevicePage = () => {
               <SelectField
                 value={item.calendarId}
                 onChange={(event) => setItem({ ...item, calendarId: Number(event.target.value) })}
-                endpoint="/api/calendars"
+                endpoint="api/calendars"
                 label={t('sharedCalendar')}
               />
               <TextField
@@ -141,7 +141,7 @@ const DevicePage = () => {
                     setItem({ ...item, expirationTime: new Date(e.target.value).toISOString() });
                   }
                 }}
-                disabled={!admin}
+                disabled={!manager}
               />
               <FormControlLabel
                 control={
@@ -151,7 +151,7 @@ const DevicePage = () => {
                   />
                 }
                 label={t('sharedDisabled')}
-                disabled={!admin}
+                disabled={!manager}
               />
               <Button variant="outlined" color="primary" onClick={() => setShowQr(true)}>
                 {t('sharedQrCode')}
@@ -164,11 +164,11 @@ const DevicePage = () => {
                 <Typography variant="subtitle1">{t('attributeDeviceImage')}</Typography>
               </AccordionSummary>
               <AccordionDetails className={classes.details}>
-                <MuiFileInput
+                <FileInput
                   placeholder={t('attributeDeviceImage')}
                   value={imageFile}
                   onChange={handleFileInput}
-                  inputProps={{ accept: 'image/*' }}
+                  slotProps={{ htmlInput: { accept: 'image/*' } }}
                 />
               </AccordionDetails>
             </Accordion>
@@ -180,7 +180,7 @@ const DevicePage = () => {
           />
         </>
       )}
-      <QrCodeDialog open={showQr} onClose={() => setShowQr(false)} />
+      <ServerQrCodeDialog open={showQr} onClose={() => setShowQr(false)} />
     </EditItemView>
   );
 };

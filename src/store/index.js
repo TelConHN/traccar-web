@@ -1,6 +1,6 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit';
 
-import { errorsReducer as errors } from './errors';
+import { messagesReducer as messages } from './messages';
 import { sessionReducer as session } from './session';
 import { devicesReducer as devices } from './devices';
 import { eventsReducer as events } from './events';
@@ -11,10 +11,11 @@ import { driversReducer as drivers } from './drivers';
 import { productsReducer as products } from './products';
 import { maintenancesReducer as maintenances } from './maintenances';
 import { calendarsReducer as calendars } from './calendars';
+import { reportsReducer as reports } from './reports';
 import throttleMiddleware from './throttleMiddleware';
 
 const reducer = combineReducers({
-  errors,
+  messages,
   session,
   devices,
   events,
@@ -25,9 +26,10 @@ const reducer = combineReducers({
   products,
   maintenances,
   calendars,
+  reports,
 });
 
-export { errorsActions } from './errors';
+export { messagesActions } from './messages';
 export { sessionActions } from './session';
 export { devicesActions } from './devices';
 export { eventsActions } from './events';
@@ -38,6 +40,7 @@ export { driversActions } from './drivers';
 export { productsActions } from './products';
 export { maintenancesActions } from './maintenances';
 export { calendarsActions } from './calendars';
+export { reportsActions } from './reports';
 
 export default configureStore({
   reducer,

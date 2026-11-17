@@ -12,7 +12,7 @@
 // computadora: panel a la izquierda.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import { googleProtocol } from 'maplibre-google-maps';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {

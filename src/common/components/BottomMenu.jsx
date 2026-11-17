@@ -137,7 +137,7 @@ const BottomMenu = () => {
                 : undefined,
           },
         };
-        await fetch(`/api/users/${user.id}`, {
+        await fetch(`api/users/${user.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updatedUser),
@@ -145,7 +145,7 @@ const BottomMenu = () => {
       }
     }
 
-    await fetch('/api/session', { method: 'DELETE' });
+    await fetch('api/session', { method: 'DELETE' });
     nativePostMessage('logout');
     navigate('/login');
     dispatch(sessionActions.updateUser(null));

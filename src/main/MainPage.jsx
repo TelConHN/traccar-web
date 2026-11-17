@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useCallback, useEffect, useRef } from 'react';
 import { Paper } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 import { useTheme } from '@mui/material/styles';
@@ -16,8 +16,10 @@ import EventsDrawer from './EventsDrawer';
 import useFilter from './useFilter';
 import useDeviceOwners from './useDeviceOwners';
 import MainToolbar from './MainToolbar';
-import MainMap from './MainMap';
 import { useAttributePreference } from '../common/util/preferences';
+import useFeatures from '../common/util/useFeatures';
+
+const MainMap = lazy(() => import('./MainMap'));
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -72,6 +74,8 @@ const MainPage = () => {
   const dispatch = useDispatch();
   const theme = useTheme();
 
+  const features = useFeatures();
+
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
 
   const mapOnSelect = useAttributePreference('mapOnSelect', true);
@@ -117,9 +121,10 @@ const MainPage = () => {
   const [filteredDevices, setFilteredDevices] = useState([]);
 
   const [keyword, setKeyword] = useState('');
-  const [filter, setFilter] = usePersistedState('filter', {
+  const [filter, setFilter] = usePersistedState('deviceFilter', {
     statuses: [],
     groups: [],
+    geofences: [],
   });
   const [filterSort, setFilterSort] = usePersistedState('filterSort', '');
   const [filterMap, setFilterMap] = usePersistedState('filterMap', false);
@@ -141,7 +146,7 @@ const MainPage = () => {
     keyword,
     filter,
     filterSort,
-    filterMap,
+    filterMap && !features.disableDeviceList,
     positions,
     setFilteredDevices,
     setFilteredPositions,
@@ -151,49 +156,57 @@ const MainPage = () => {
   return (
     <div className={classes.root}>
       {desktop && (
-        <MainMap
-          filteredPositions={filteredPositions}
-          selectedPosition={selectedPosition}
-          onEventsClick={onEventsClick}
-        />
+        <Suspense fallback={null}>
+          <MainMap
+            filteredPositions={filteredPositions}
+            selectedPosition={selectedPosition}
+            onEventsClick={onEventsClick}
+          />
+        </Suspense>
       )}
       <div className={classes.sidebar} data-tour="lista-vehiculos">
-        <Paper square elevation={3} className={classes.header}>
-          <MainToolbar
-            filteredDevices={filteredDevices}
-            devicesOpen={devicesOpen}
-            setDevicesOpen={setDevicesOpen}
-            keyword={keyword}
-            setKeyword={setKeyword}
-            filter={filter}
-            setFilter={setFilter}
-            filterSort={filterSort}
-            setFilterSort={setFilterSort}
-            filterMap={filterMap}
-            setFilterMap={setFilterMap}
-            owners={owners}
-          />
-        </Paper>
+        {!features.disableDeviceList && (
+          <Paper square elevation={3} className={classes.header}>
+            <MainToolbar
+              filteredDevices={filteredDevices}
+              devicesOpen={devicesOpen}
+              setDevicesOpen={setDevicesOpen}
+              keyword={keyword}
+              setKeyword={setKeyword}
+              filter={filter}
+              setFilter={setFilter}
+              filterSort={filterSort}
+              setFilterSort={setFilterSort}
+              filterMap={filterMap}
+              setFilterMap={setFilterMap}
+              owners={owners}
+            />
+          </Paper>
+        )}
         <div className={classes.middle}>
           {!desktop && (
             <div className={classes.contentMap}>
-              <MainMap
-                filteredPositions={filteredPositions}
-                selectedPosition={selectedPosition}
-                onEventsClick={onEventsClick}
-              />
+              <Suspense fallback={null}>
+                <MainMap
+                  filteredPositions={filteredPositions}
+                  selectedPosition={selectedPosition}
+                  onEventsClick={onEventsClick}
+                />
+              </Suspense>
             </div>
           )}
-          <Paper
-            square
-            className={classes.contentList}
-            style={devicesOpen ? {} : { visibility: 'hidden' }}
-            data-tour="lista-contenido"
-          >
-            <DeviceList devices={filteredDevices} />
-          </Paper>
+          {!features.disableDeviceList && (
+            <Paper
+              square
+              className={classes.contentList}
+              style={devicesOpen ? {} : { visibility: 'hidden' }}
+              data-tour="lista-contenido"
+            >
+              <DeviceList devices={filteredDevices} />
+            </Paper>
+          )}
         </div>
-        {desktop && (
+        {desktop && !features.disableTabs && (
           <div className={classes.footer}>
             <BottomMenu />
           </div>
@@ -219,12 +232,12 @@ const MainPage = () => {
         })}
       />
       <EventsDrawer open={eventsOpen} onClose={() => setEventsOpen(false)} />
-      {selectedDeviceId && (
+      {selectedDeviceId && !features.disableStatusCard && (
         <StatusCard
           deviceId={selectedDeviceId}
           position={selectedPosition}
           onClose={() => dispatch(devicesActions.selectId(null))}
-          desktopPadding={theme.dimensions.drawerWidthDesktop}
+          desktopPadding={features.disableDeviceList ? 0 : theme.dimensions.drawerWidthDesktop}
         />
       )}
     </div>

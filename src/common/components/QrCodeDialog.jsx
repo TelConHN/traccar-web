@@ -1,52 +1,34 @@
-import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Button,
-  Box,
-  useTheme,
-} from '@mui/material';
-import { QRCodeCanvas } from 'qrcode.react';
+import { Dialog, DialogContent, DialogActions, Button, useTheme } from '@mui/material';
+import { makeStyles } from 'tss-react/mui';
+import { QRCode } from 'react-qr-code';
 import { useTranslation } from './LocalizationProvider';
 
-const QrCodeDialog = ({ open, onClose }) => {
+const useStyles = makeStyles()((theme) => ({
+  qrCode: {
+    display: 'flex',
+    justifyContent: 'center',
+    marginBottom: theme.spacing(2),
+  },
+}));
+
+const QrCodeDialog = ({ open, onClose, value, children }) => {
+  const { classes } = useStyles();
   const theme = useTheme();
   const t = useTranslation();
-
-  const [serverUrl, setServerUrl] = useState(window.location.origin);
-  const [queryParams, setQueryParams] = useState('');
-
-  const fullUrl = queryParams ? `${serverUrl}?${queryParams}` : serverUrl;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogContent>
-        <Box display="flex" justifyContent="center" mb={2}>
-          <QRCodeCanvas
-            value={fullUrl || ' '}
+        <div className={classes.qrCode}>
+          <QRCode
+            value={value}
             size={theme.dimensions.qrCodeSize}
-            bgColor="#ffffff"
-            fgColor="#000000"
+            title={t('sharedQrCode')}
+            style={{ backgroundColor: 'white', padding: 16, maxWidth: '100%', height: 'auto' }}
           />
-        </Box>
+        </div>
 
-        <TextField
-          label={t('settingsServer')}
-          value={serverUrl}
-          onChange={(e) => setServerUrl(e.target.value)}
-          margin="dense"
-          fullWidth
-        />
-
-        <TextField
-          label={t('commandConfiguration')}
-          value={queryParams}
-          onChange={(e) => setQueryParams(e.target.value)}
-          margin="dense"
-          fullWidth
-        />
+        {children}
       </DialogContent>
 
       <DialogActions>

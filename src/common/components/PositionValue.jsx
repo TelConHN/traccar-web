@@ -8,6 +8,7 @@ import {
   formatCoordinate,
   formatCourse,
   formatDistance,
+  formatEnergy,
   formatNumber,
   formatNumericHours,
   formatPercentage,
@@ -59,8 +60,6 @@ const PositionValue = ({ position, property, attribute }) => {
         return formatSpeed(speedToKnots(value, 'kmh'), speedUnit, t);
       case 'course':
         return formatCourse(value);
-      case 'altitude':
-        return formatAltitude(value, altitudeUnit, t);
       case 'fuelConsumption':
         return formatConsumption(value, t);
       case 'coolantTemp':
@@ -69,12 +68,16 @@ const PositionValue = ({ position, property, attribute }) => {
         return formatAlarm(value, t);
       default:
         switch (positionAttributes[key]?.dataType) {
+          case 'altitude':
+            return formatAltitude(value, altitudeUnit, t);
           case 'speed':
             return formatSpeed(value, speedUnit, t);
           case 'distance':
             return formatDistance(value, distanceUnit, t);
           case 'voltage':
             return formatVoltage(value, t);
+          case 'energy':
+            return formatEnergy(value, t);
           case 'percentage':
             return formatPercentage(value);
           case 'volume':
@@ -112,7 +115,7 @@ const PositionValue = ({ position, property, attribute }) => {
     case 'video':
     case 'audio':
       return (
-        <Link href={`/api/media/${device.uniqueId}/${value}`} target="_blank">
+        <Link href={`api/media/${device.uniqueId}/${value}`} target="_blank">
           {value}
         </Link>
       );

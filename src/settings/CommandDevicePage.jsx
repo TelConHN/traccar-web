@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Accordion,
@@ -17,9 +17,11 @@ import SettingsMenu from './components/SettingsMenu';
 import { useCatch } from '../reactHelper';
 import useSettingsStyles from './common/useSettingsStyles';
 import fetchOrThrow from '../common/util/fetchOrThrow';
+import { messagesActions } from '../store';
 
 const CommandDevicePage = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { classes } = useSettingsStyles();
   const t = useTranslation();
 
@@ -36,7 +38,7 @@ const CommandDevicePage = () => {
   const handleSend = useCatch(async () => {
     let command;
     if (savedId) {
-      const response = await fetchOrThrow(`/api/commands/${savedId}`);
+      const response = await fetchOrThrow(`api/commands/${savedId}`);
       command = await response.json();
     } else {
       command = item;
@@ -45,7 +47,7 @@ const CommandDevicePage = () => {
     command.deviceId = parseInt(id, 10);
 
     if (esDemo && (command.type === 'engineStop' || command.type === 'engineResume')) {
-      await fetchOrThrow(`/api/rutas/vehiculos/${parseInt(id, 10)}/motor`, {
+      await fetchOrThrow(`api/rutas/vehiculos/${parseInt(id, 10)}/motor`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bloquear: command.type === 'engineStop' }),
@@ -54,11 +56,17 @@ const CommandDevicePage = () => {
       return;
     }
 
-    await fetchOrThrow('/api/commands/send', {
+    const response = await fetchOrThrow('api/commands/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(command),
     });
+    dispatch(
+      messagesActions.push({
+        message: t(response.status === 202 ? 'commandQueued' : 'commandSent'),
+        severity: 'success',
+      }),
+    );
     navigate(-1);
   });
 

@@ -33,17 +33,17 @@ const AccumulatorsPage = () => {
   const [item, setItem] = useState();
 
   useEffect(() => {
-    if (position) {
+    if (position && !item) {
       setItem({
         deviceId: parseInt(deviceId, 10),
         hours: position.attributes.hours || 0,
         totalDistance: position.attributes.totalDistance || 0,
       });
     }
-  }, [deviceId, position]);
+  }, [deviceId, position, item]);
 
   const handleSave = useCatch(async () => {
-    await fetchOrThrow(`/api/devices/${deviceId}/accumulators`, {
+    await fetchOrThrow(`api/devices/${deviceId}/accumulators`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(item),

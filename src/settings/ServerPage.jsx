@@ -18,7 +18,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { MuiFileInput } from 'mui-file-input';
+import FileInput from '../common/components/FileInput';
 import { sessionActions } from '../store';
 import EditAttributesAccordion from './components/EditAttributesAccordion';
 import { useTranslation } from '../common/components/LocalizationProvider';
@@ -50,7 +50,7 @@ const ServerPage = () => {
 
   const handleFileChange = useCatch(async (newFile) => {
     if (newFile) {
-      await fetchOrThrow(`/api/server/file/${newFile.name}`, {
+      await fetchOrThrow(`api/server/file/${newFile.name}`, {
         method: 'POST',
         body: newFile,
       });
@@ -58,7 +58,7 @@ const ServerPage = () => {
   });
 
   const handleSave = useCatch(async () => {
-    const response = await fetchOrThrow('/api/server', {
+    const response = await fetchOrThrow('api/server', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(item),
@@ -91,7 +91,7 @@ const ServerPage = () => {
                   <InputLabel>{t('mapDefault')}</InputLabel>
                   <Select
                     label={t('mapDefault')}
-                    value={item.map || 'locationIqStreets'}
+                    value={item.map || 'openFreeMap'}
                     onChange={(e) => setItem({ ...item, map: e.target.value })}
                   >
                     {mapStyles
@@ -190,7 +190,7 @@ const ServerPage = () => {
                       attributes: { ...item.attributes, timezone: e.target.value },
                     })
                   }
-                  endpoint="/api/server/timezones"
+                  endpoint="api/server/timezones"
                   keyGetter={(it) => it}
                   titleGetter={(it) => it}
                   label={t('sharedTimezone')}
@@ -336,7 +336,7 @@ const ServerPage = () => {
                 <Typography variant="subtitle1">{t('sharedFile')}</Typography>
               </AccordionSummary>
               <AccordionDetails className={classes.details}>
-                <MuiFileInput
+                <FileInput
                   placeholder={t('sharedSelectFile')}
                   value={null}
                   onChange={handleFileChange}

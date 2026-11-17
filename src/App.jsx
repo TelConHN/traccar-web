@@ -6,13 +6,14 @@ import BottomMenu from './common/components/BottomMenu';
 import SocketController from './SocketController';
 import CachingController from './CachingController';
 import { useEffect } from 'react';
-import { useCatch, useEffectAsync } from './reactHelper';
+import { useCatch, useAsyncTask } from './reactHelper';
 import { sessionActions } from './store';
 import UpdateController from './UpdateController';
 import MotionController from './main/MotionController';
 import TermsDialog from './common/components/TermsDialog';
 import AvisoCobroDialog from './common/components/AvisoCobroDialog';
 import Loader from './common/components/Loader';
+import useFeatures from './common/util/useFeatures';
 import fetchOrThrow from './common/util/fetchOrThrow';
 
 const useStyles = makeStyles()(() => ({
@@ -33,7 +34,9 @@ const App = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { pathname, search } = useLocation();
+  const location = useLocation();
+
+  const features = useFeatures();
 
   const desktop = useMediaQuery(theme.breakpoints.up('md'));
 
@@ -42,7 +45,7 @@ const App = () => {
   const user = useSelector((state) => state.session.user);
 
   const acceptTerms = useCatch(async () => {
-    const response = await fetchOrThrow(`/api/users/${user.id}`, {
+    const response = await fetchOrThrow(`api/users/${user.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...user, attributes: { ...user.attributes, termsAccepted: true } }),
@@ -50,18 +53,21 @@ const App = () => {
     dispatch(sessionActions.updateUser(await response.json()));
   });
 
-  useEffectAsync(async () => {
-    if (!user) {
-      const response = await fetch('/api/session');
-      if (response.ok) {
-        dispatch(sessionActions.updateUser(await response.json()));
-      } else {
-        window.sessionStorage.setItem('postLogin', pathname + search);
-        navigate(newServer ? '/register' : '/login', { replace: true });
+  useAsyncTask(
+    async ({ signal }) => {
+      if (!user) {
+        const response = await fetch('api/session', { signal });
+        if (response.ok) {
+          dispatch(sessionActions.updateUser(await response.json()));
+        } else {
+          window.sessionStorage.setItem('postLogin', location.pathname + location.search);
+          navigate(newServer ? '/register' : '/login', { replace: true });
+        }
       }
-    }
-    return null;
-  }, []);
+      return null;
+    },
+    [user, dispatch, navigate, newServer, location.pathname, location.search],
+  );
 
   // Un conductor entra a trabajar, no a mirar la flota: se le lleva a su ruta. Sin esto caía
   // en el mapa principal, que para él está vacío —solo ve el vehículo de su ruta activa— y
@@ -70,10 +76,10 @@ const App = () => {
   // El rol viaja en su propia cuenta, así que esto no cuesta ninguna consulta. Solo redirige
   // desde la raíz: si abre un enlace concreto, se respeta.
   useEffect(() => {
-    if (user?.attributes?.['rutas.rol'] === 'conductor' && pathname === '/') {
+    if (user?.attributes?.['rutas.rol'] === 'conductor' && location.pathname === '/') {
       navigate('/mi-ruta', { replace: true });
     }
-  }, [user, pathname, navigate]);
+  }, [user, location.pathname, navigate]);
 
   if (user == null) {
     return <Loader />;
@@ -92,7 +98,7 @@ const App = () => {
       <div className={classes.page}>
         <Outlet />
       </div>
-      {!desktop && (
+      {!desktop && !features.disableTabs && (
         <div className={classes.menu}>
           <BottomMenu />
         </div>

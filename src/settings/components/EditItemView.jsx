@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Container,
@@ -9,7 +10,7 @@ import {
   Typography,
   TextField,
 } from '@mui/material';
-import { useCatch, useEffectAsync } from '../../reactHelper';
+import { useCatch, useAsyncTask } from '../../reactHelper';
 import { useTranslation } from '../../common/components/LocalizationProvider';
 import PageLayout from '../../common/components/PageLayout';
 import useSettingsStyles from '../common/useSettingsStyles';
@@ -31,34 +32,43 @@ const EditItemView = ({
   const t = useTranslation();
 
   const { id } = useParams();
+  const [saving, setSaving] = useState(false);
 
-  useEffectAsync(async () => {
-    if (!item) {
-      if (id) {
-        const response = await fetchOrThrow(`/api/${endpoint}/${id}`);
-        setItem(await response.json());
-      } else {
-        setItem(defaultItem || {});
+  useAsyncTask(
+    async ({ signal }) => {
+      if (!item) {
+        if (id) {
+          const response = await fetchOrThrow(`api/${endpoint}/${id}`, { signal });
+          setItem(await response.json());
+        } else {
+          setItem(defaultItem || {});
+        }
       }
-    }
-  }, [id, item, defaultItem]);
+    },
+    [id, item, defaultItem, endpoint, setItem],
+  );
 
   const handleSave = useCatch(async () => {
-    let url = `/api/${endpoint}`;
+    let url = `api/${endpoint}`;
     if (id) {
       url += `/${id}`;
     }
 
-    const response = await fetchOrThrow(url, {
-      method: !id ? 'POST' : 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(item),
-    });
+    setSaving(true);
+    try {
+      const response = await fetchOrThrow(url, {
+        method: !id ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      });
 
-    // onItemSaved puede ser async; si devuelve true, la página se queda abierta.
-    const stay = onItemSaved ? await onItemSaved(await response.json()) : false;
-    if (stay !== true) {
-      navigate(-1);
+      // onItemSaved puede ser async; si devuelve true, la página se queda abierta.
+      const stay = onItemSaved ? await onItemSaved(await response.json()) : false;
+      if (stay !== true) {
+        navigate(-1);
+      }
+    } finally {
+      setSaving(false);
     }
   });
 
@@ -91,7 +101,7 @@ const EditItemView = ({
             color="primary"
             variant="contained"
             onClick={handleSave}
-            disabled={!item || !validate()}
+            disabled={saving || !item || !validate()}
           >
             {t('sharedSave')}
           </Button>

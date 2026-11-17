@@ -134,8 +134,7 @@ const Conductores = ({ perfil }) => {
                       ))}
                     </Stack>
                   }
-                  primaryTypographyProps={{ component: 'div' }}
-                  secondaryTypographyProps={{ component: 'div' }}
+                  slotProps={{ primary: { component: 'div' }, secondary: { component: 'div' } }}
                 />
               </ListItem>
             );

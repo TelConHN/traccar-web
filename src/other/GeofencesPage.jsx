@@ -20,8 +20,8 @@ import MapCurrentLocation from '../map/MapCurrentLocation';
 import MapGeofenceEdit from '../map/draw/MapGeofenceEdit';
 import GeofencesList from './GeofencesList';
 import { useTranslation } from '../common/components/LocalizationProvider';
-import MapGeocoder from '../map/geocoder/MapGeocoder';
-import { errorsActions, geofencesActions } from '../store';
+import MapGeocoder from '../map/control/MapGeocoder';
+import { messagesActions, geofencesActions } from '../store';
 import MapScale from '../map/MapScale';
 import BackIcon from '../common/components/BackIcon';
 import fetchOrThrow from '../common/util/fetchOrThrow';
@@ -216,7 +216,7 @@ const GeofencesPage = () => {
       const area = `LINESTRING (${coordinates})`;
       const newItem = { name: t('sharedGeofence'), area };
       try {
-        const response = await fetchOrThrow('/api/geofences', {
+        const response = await fetchOrThrow('api/geofences', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newItem),
@@ -224,11 +224,11 @@ const GeofencesPage = () => {
         const item = await response.json();
         navigate(`/settings/geofence/${item.id}${newQuery}`);
       } catch (error) {
-        dispatch(errorsActions.push(error.message));
+        dispatch(messagesActions.push(error.message));
       }
     };
     reader.onerror = (event) => {
-      dispatch(errorsActions.push(event.target.error));
+      dispatch(messagesActions.push(event.target.error));
     };
     reader.readAsText(file);
   };
