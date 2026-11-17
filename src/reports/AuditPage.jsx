@@ -930,7 +930,13 @@ const AuditPage = () => {
   return (
     <PageLayout menu={<ReportsMenu />} breadcrumbs={['reportTitle', 'reportAudit']}>
       <div className={classes.header}>
-        <ReportFilter onShow={onShow} onExport={onExport} deviceType="none" loading={loading}>
+        <ReportFilter
+          onShow={onShow}
+          onExport={onExport}
+          deviceType="none"
+          loading={loading}
+          formats={['xlsx']}
+        >
           <div className={classes.filterItem}>
             <Autocomplete
               multiple
