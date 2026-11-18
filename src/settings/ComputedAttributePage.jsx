@@ -56,7 +56,9 @@ const ComputedAttributePage = () => {
     }));
 
   const filter = createFilterOptions({
-    stringify: (option) => option.name,
+    // Several attributes can share a label (io113 and batteryLevel are both the battery level),
+    // so the key is searchable too and shown next to the name.
+    stringify: (option) => `${option.name} ${option.key}`,
   });
 
   const testAttribute = useCatch(async () => {
@@ -132,7 +134,21 @@ const ComputedAttributePage = () => {
                 getOptionLabel={(option) =>
                   typeof option === 'object' ? option.inputValue || option.name : option
                 }
-                renderOption={(props, option) => <li {...props}>{option.name || option}</li>}
+                renderOption={(props, option) => (
+                  <li {...props}>
+                    {option.name || option}
+                    {option.key && (
+                      <Typography
+                        component="span"
+                        variant="caption"
+                        color="textSecondary"
+                        sx={{ ml: 1 }}
+                      >
+                        {option.key}
+                      </Typography>
+                    )}
+                  </li>
+                )}
                 renderInput={(params) => <TextField {...params} label={t('sharedAttribute')} />}
               />
               <TextField

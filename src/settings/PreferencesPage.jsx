@@ -77,7 +77,11 @@ const PreferencesPage = () => {
 
   const positionAttributes = usePositionAttributes(t);
 
-  const filter = createFilterOptions();
+  // Several attributes can share a label (io113 and batteryLevel are both the battery level),
+  // so the key is searchable too and shown next to the name.
+  const filter = createFilterOptions({
+    stringify: (option) => `${positionAttributes[option]?.name || option} ${option}`,
+  });
 
   const generateToken = useCatch(async () => {
     const expiration = dayjs(tokenExpiration, 'YYYY-MM-DD').toISOString();
@@ -222,6 +226,16 @@ const PreferencesPage = () => {
                   renderOption={(props, option) => (
                     <li {...props}>
                       {option.name ? option.name : positionAttributes[option]?.name || option}
+                      {!option.name && positionAttributes[option] && (
+                        <Typography
+                          component="span"
+                          variant="caption"
+                          color="textSecondary"
+                          sx={{ ml: 1 }}
+                        >
+                          {option}
+                        </Typography>
+                      )}
                     </li>
                   )}
                   renderInput={(params) => (
