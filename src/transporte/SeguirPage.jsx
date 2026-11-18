@@ -946,7 +946,7 @@ const SeguirContenido = () => {
   const encabezado = (
     <Box sx={{ bgcolor: OSCURO, color: '#fff', px: 2, py: 1.5 }}>
       <Stack direction="row" alignItems="center" spacing={1.5}>
-        <Box component="img" src="/logo.svg" alt="TelConHN" sx={{ height: 18, width: 'auto' }} />
+        <Box component="img" src="/logo.svg" alt="TelConHN" sx={{ height: 32, width: 'auto' }} />
         <Box sx={{ flexGrow: 1 }} />
         {datos && (
           <Stack direction="row" alignItems="center" spacing={0.75}>
