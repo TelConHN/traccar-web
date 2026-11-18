@@ -27,7 +27,7 @@ import ReportsMenu from './components/ReportsMenu';
 import ReportFilter, { updateReportParams } from './components/ReportFilter';
 import usePersistedState from '../common/util/usePersistedState';
 import ColumnSelect from './components/ColumnSelect';
-import { useCatch, useEffectAsync } from '../reactHelper';
+import { useCatch, useCatchCallback, useEffectAsync } from '../reactHelper';
 import useReportStyles from './common/useReportStyles';
 import TableShimmer from '../common/components/TableShimmer';
 import fetchOrThrow from '../common/util/fetchOrThrow';
@@ -317,21 +317,26 @@ const AuditPage = () => {
   const [eventsTruncated, setEventsTruncated] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const onShow = useCatch(async ({ from, to }) => {
-    setLoading(true);
-    try {
-      const query = new URLSearchParams({ from, to });
-      userIds.forEach((id) => query.append('userId', id));
-      deviceIds.forEach((id) => query.append('deviceId', id));
-      selectedTypes.forEach((type) => query.append('actionType', type));
-      selectedEventTypes.forEach((type) => query.append('eventType', type));
-      const response = await fetchOrThrow(`/api/audit?${query.toString()}`);
-      setEventsTruncated(Number(response.headers.get('X-Audit-Events-Truncated')) || 0);
-      setItems(await response.json());
-    } finally {
-      setLoading(false);
-    }
-  });
+  // ReportFilter (6.17) vuelve a consultar cada vez que cambia onShow: tiene que ser estable o la
+  // página entra en un ciclo de pedir → «cargando» → redibujar → pedir sin fin.
+  const onShow = useCatchCallback(
+    async ({ from, to }) => {
+      setLoading(true);
+      try {
+        const query = new URLSearchParams({ from, to });
+        userIds.forEach((id) => query.append('userId', id));
+        deviceIds.forEach((id) => query.append('deviceId', id));
+        selectedTypes.forEach((type) => query.append('actionType', type));
+        selectedEventTypes.forEach((type) => query.append('eventType', type));
+        const response = await fetchOrThrow(`/api/audit?${query.toString()}`);
+        setEventsTruncated(Number(response.headers.get('X-Audit-Events-Truncated')) || 0);
+        setItems(await response.json());
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userIds, deviceIds, selectedTypes, selectedEventTypes],
+  );
 
   const translated = (key, fallback) => t(key) || fallback;
 
