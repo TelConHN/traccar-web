@@ -34,6 +34,7 @@ import {
   renderUserOption,
 } from '../other/geofenceAssignments';
 import GeofenceDevicesPanel from '../other/GeofenceDevicesPanel';
+import GeofenceAlertsPanel from '../other/GeofenceAlertsPanel';
 
 const permission = (userId, geofenceId, method) =>
   fetchOrThrow('/api/permissions', {
@@ -103,8 +104,29 @@ const GeofencePage = () => {
   const handleOwnerChange = (value) => {
     setOwner(value);
     // Por defecto: lo de Telcon avisa a Telcon, lo de un cliente solo al cliente. Se puede cambiar.
-    setNotifyAdministration(value === 'telcon');
+    const attributes = { ...item.attributes, notificarAdministracion: value === 'telcon' };
+    if (value === 'cliente') {
+      // Vigilar todos los carros es solo de Telcon: la de un cliente que vigilara todo le contaría a
+      // ese cliente dónde andan los carros de los demás.
+      delete attributes.todosLosCarros;
+    }
+    setItem({ ...item, attributes });
   };
+
+  const setAttribute = (key, value) => {
+    const attributes = { ...item.attributes };
+    if (value === false) {
+      delete attributes[key];
+    } else {
+      attributes[key] = value;
+    }
+    setItem({ ...item, attributes });
+  };
+  const adminOptions = data
+    ? Object.values(data.users)
+        .filter((user) => user.administrator && !user.disabled)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    : [];
 
   const onItemSaved = async (result) => {
     dispatch(geofencesActions.update([result]));
@@ -220,20 +242,59 @@ const GeofencePage = () => {
                     )}
                   />
                 )}
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={notifyAdministration}
-                      onChange={(event) => setNotifyAdministration(event.target.checked)}
+                {owner === 'telcon' && (
+                  <>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={!!item.attributes.todosLosCarros}
+                          onChange={(event) => setAttribute('todosLosCarros', event.target.checked)}
+                        />
+                      }
+                      label="Vigilar todos los carros (también los que se agreguen después)"
                     />
-                  }
-                  label="Avisar también a Telcon cuando un carro entre o salga"
-                />
+                    <Typography variant="caption" color="textSecondary">
+                      No hace falta asignarle carros. El cliente no la ve en su cuenta. Se aplica
+                      al pulsar Guardar.
+                    </Typography>
+                  </>
+                )}
+                {owner === 'cliente' && (
+                  <>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={notifyAdministration}
+                          onChange={(event) => setNotifyAdministration(event.target.checked)}
+                        />
+                      }
+                      label="Avisar también a Telcon cuando un carro entre o salga"
+                    />
+                    <Typography variant="caption" color="textSecondary">
+                      Apagada, el aviso solo le llega al cliente. Las cuentas de administración
+                      tienen todos los carros, por eso sin esta casilla recibirían los avisos de
+                      todos los clientes.
+                    </Typography>
+                  </>
+                )}
+              </AccordionDetails>
+            </Accordion>
+          )}
+          {admin && id && data && owner === 'telcon' && (
+            <Accordion defaultExpanded>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="subtitle1">Avisos de esta geocerca</Typography>
+              </AccordionSummary>
+              <AccordionDetails className={classes.details}>
                 <Typography variant="caption" color="textSecondary">
-                  Apagada, el aviso solo le llega al cliente. Las cuentas de administración tienen
-                  todos los carros, por eso sin esta casilla recibirían los avisos de todos los
-                  clientes.
+                  Se aplican al instante. Cada aviso es una notificación de Ajustes →
+                  Notificaciones, la misma que se ve allá.
                 </Typography>
+                <GeofenceAlertsPanel
+                  geofence={item}
+                  admins={adminOptions}
+                  currentUserId={currentUserId}
+                />
               </AccordionDetails>
             </Accordion>
           )}
@@ -243,6 +304,12 @@ const GeofencePage = () => {
                 <Typography variant="subtitle1">Carros con esta geocerca</Typography>
               </AccordionSummary>
               <AccordionDetails className={classes.details}>
+                {item.attributes.todosLosCarros && (
+                  <Alert severity="info">
+                    Esta geocerca vigila todos los carros. Lo de abajo solo sirve si además quiere
+                    que un cliente la vea en su cuenta.
+                  </Alert>
+                )}
                 <Typography variant="caption" color="textSecondary">
                   Estos cambios se aplican al instante, sin pulsar Guardar.
                 </Typography>
