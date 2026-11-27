@@ -70,6 +70,7 @@ const CargaPage = lazy(() => import('./other/CargaPage'));
 const ProductsPage = lazy(() => import('./settings/ProductsPage'));
 const ProductPage = lazy(() => import('./settings/ProductPage'));
 const SpeedLimitPage = lazy(() => import('./settings/SpeedLimitPage'));
+const BulkCommandsPage = lazy(() => import('./settings/BulkCommandsPage'));
 const SeguirPage = lazy(() => import('./transporte/SeguirPage'));
 const RutasPage = lazy(() => import('./rutas/RutasPage'));
 const MiRutaPage = lazy(() => import('./rutas/MiRutaPage'));
@@ -188,6 +189,7 @@ const Navigation = () => {
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="commands" element={<CommandsPage />} />
             <Route path="speedlimit" element={<SpeedLimitPage />} />
+            <Route path="bulk-commands" element={<BulkCommandsPage />} />
             <Route path="command/:id" element={<CommandPage />} />
             <Route path="command" element={<CommandPage />} />
             <Route path="attributes" element={<ComputedAttributesPage />} />

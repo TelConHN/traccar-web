@@ -10,6 +10,7 @@ import BuildIcon from '@mui/icons-material/Build';
 import PeopleIcon from '@mui/icons-material/People';
 import TodayIcon from '@mui/icons-material/Today';
 import SendIcon from '@mui/icons-material/Send';
+import DynamicFeedIcon from '@mui/icons-material/DynamicFeed';
 import RouterIcon from '@mui/icons-material/Router';
 import SpeedIcon from '@mui/icons-material/Speed';
 import DnsIcon from '@mui/icons-material/Dns';
@@ -131,6 +132,15 @@ const SettingsMenu = () => {
                 link="/settings/commands"
                 icon={<SendIcon />}
                 selected={location.pathname.startsWith('/settings/command')}
+              />
+            )}
+            {/* Un comando guardado a muchos equipos de una vez: solo administración. */}
+            {admin && !features.disableSavedCommands && (
+              <MenuItem
+                title={t('bulkCommandsTitle')}
+                link="/settings/bulk-commands"
+                icon={<DynamicFeedIcon />}
+                selected={location.pathname === '/settings/bulk-commands'}
               />
             )}
           </>

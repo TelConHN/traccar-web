@@ -716,6 +716,7 @@
     "maintenanceStart": "Inicio",
     "maintenancePeriod": "Período",
     "speedLimitTitle": "Límite de velocidad",
+    "bulkCommandsTitle": "Comandos masivos",
     "speedLimitMax": "Velocidad máxima",
     "speedLimitCommandTemplate": "Plantilla de comando GPS",
     "speedLimitPickCommand": "Usar comando guardado…",

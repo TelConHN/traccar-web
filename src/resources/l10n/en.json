@@ -494,6 +494,7 @@
     "commandSend": "Send",
     "commandSent": "Command sent",
     "commandQueued": "Command queued",
+    "bulkCommandsTitle": "Bulk commands",
     "commandNoQueue": "No queue",
     "commandUnit": "Unit",
     "commandCustom": "Custom Command",

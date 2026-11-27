@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { map } from './core/MapView';
 import MapMarkers from './MapMarkers';
@@ -15,8 +15,15 @@ const MapPositionMarkers = ({
   selectedPosition,
   titleField,
   disabled,
+  extraDevices,
 }) => {
-  const devices = useSelector((state) => state.devices.items);
+  const storeDevices = useSelector((state) => state.devices.items);
+  // Un vehículo que no está en la lista de la cuenta (p. ej. el de un cliente abierto desde Auditoría)
+  // llega aparte; sin esto su marcador no se dibujaba.
+  const devices = useMemo(
+    () => (extraDevices ? { ...extraDevices, ...storeDevices } : storeDevices),
+    [storeDevices, extraDevices],
+  );
   const selectedDeviceId = useSelector((state) => state.devices.selectedId);
 
   const mapCluster = useAttributePreference('mapCluster', true);
